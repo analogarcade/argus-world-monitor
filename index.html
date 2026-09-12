@@ -565,14 +565,22 @@ setInterval(()=>{drawNight();},300000);
 function issIconHTML(){return "<div class='issWrap'><div class='issmk'></div><span class='issLbl'>ISS</span></div>";}
 async function fetchISSPos(){
   const urls=["https://api.wheretheiss.at/v1/satellites/25544","https://api.allorigins.win/raw?url="+encodeURIComponent("https://api.wheretheiss.at/v1/satellites/25544")];
-  for(const u of urls){
-    try{
-      const r=await get(u,15000);const d=await r.json();
-      const la=parseFloat(d.latitude),lo=parseFloat(d.longitude);
-      if(isFinite(la)&&isFinite(lo))return{la,lo};
-    }catch(e){/* try next */}
-  }
-  return null;
+  const fetchOne=u=>(async()=>{try{
+    const r=await get(u,8000);const d=await r.json();
+    const la=parseFloat(d.latitude),lo=parseFloat(d.longitude);
+    if(isFinite(la)&&isFinite(lo))return{la,lo};
+  }catch(e){}return null;})();
+  return await new Promise(resolve=>{
+    let pending=urls.length;
+    urls.forEach(u=>{fetchOne(u).then(pos=>{if(pos)resolve(pos);else if(--pending<=0)resolve(null);});});
+  });
+}
+function placeISSMarker(la,lo,live){
+  if(!map||typeof L==="undefined")return;
+  if(!issMarker)issMarker=L.marker([la,lo],{icon:L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}),zIndexOffset:1000,interactive:true}).addTo(map);
+  else{issMarker.setLatLng([la,lo]);issMarker.setIcon(L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}));}
+  issMarker.bindTooltip("ISS · "+la.toFixed(2)+"°, "+lo.toFixed(2)+"° · "+(live?"live":"predicted"),{className:"evtip",direction:"top",offset:[0,-10],sticky:true});
+  const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+la.toFixed(1)+"°, "+lo.toFixed(1)+"° · "+(live?"live":"predicted");
 }
 async function trackISS(){
   if(!map||typeof L==="undefined"){issTimer=setTimeout(trackISS,15000);return;}
@@ -580,38 +588,67 @@ async function trackISS(){
     const pos=await fetchISSPos();
     if(pos){
       issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});if(issFixes.length>24)issFixes.shift();
-      if(!issMarker)issMarker=L.marker([pos.la,pos.lo],{icon:L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}),zIndexOffset:1000,interactive:true}).addTo(map);
-      else{issMarker.setLatLng([pos.la,pos.lo]);issMarker.setIcon(L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}));}
-      issMarker.bindTooltip("ISS · "+pos.la.toFixed(2)+"°, "+pos.lo.toFixed(2)+"° · live",{className:"evtip",direction:"top",offset:[0,-10],sticky:true});
-      const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+pos.la.toFixed(1)+"°, "+pos.lo.toFixed(1)+"° · live";
+      try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6)}));}catch(e){}
+      placeISSMarker(pos.la,pos.lo,true);
       issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener'>NASA ISS →</a>");
-      drawTrack();
+      tickISS();
     }else{
-      const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
+      const pi=$("pulseIss");if(pi&&!issFixes.length)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
     }
   }catch(e){}
   const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
   clearTimeout(issTimer);issTimer=setTimeout(trackISS,issFixes.length<3?2500:span<60000?5000:12000);
 }
+/* Motion vector from live fixes; tick extrapolates it so the dot glides smoothly
+   between fixes and survives feed blips (up to 10 min) instead of freezing. */
+function issVector(){
+  if(issFixes.length<2)return null;
+  const F1=issFixes[issFixes.length-1];let F0=null;
+  for(let i=issFixes.length-2;i>=0;i--){if(F1.t-issFixes[i].t>=10000){F0=issFixes[i];break;}}
+  if(!F0)F0=issFixes[0];
+  const dt=(F1.t-F0.t)/1000;if(!F0||dt<2||!isFinite(dt))return null;
+  const om=fCentral(F0.la,F0.lo,F1.la,F1.lo)/dt;
+  if(!isFinite(om)||om<=0||om>0.01)return null;
+  return{F1,om,brg:fBearing(F0.la,F0.lo,F1.la,F1.lo)};
+}
+function issPredicted(v,at){
+  const ts=(at-v.F1.t)/1000;
+  const p=fDest(v.F1.la,v.F1.lo,v.brg,v.om*ts);
+  if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>90)return null;
+  let ln=p[1]-15.0410686*ts/3600;ln=((ln+540)%360)-180;
+  return{la:p[0],lo:ln};
+}
+function restoreISS(){
+  try{
+    const c=JSON.parse(localStorage.getItem("argus-iss")||"null");
+    if(!c||!Array.isArray(c.fixes)||Date.now()-c.at>10*60*1000)return;
+    const f=c.fixes.filter(x=>x&&isFinite(x.la)&&isFinite(x.lo)&&isFinite(x.t));
+    if(f.length<2)return;
+    issFixes=f;
+    tickISS();
+  }catch(e){}
+}
+function tickISS(){
+  if(!map||typeof L==="undefined")return;
+  const v=issVector();if(!v)return;
+  const now=Date.now(),age=now-v.F1.t;
+  if(age>10*60*1000)return;
+  const p=issPredicted(v,now);if(!p)return;
+  placeISSMarker(p.la,p.lo,age<25000);
+  drawTrack(p);
+}
 const D2R=Math.PI/180,R2D=180/Math.PI;
 function fCentral(a,b,c,d){const s=Math.sin((c-a)/2*D2R)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin((d-b)/2*D2R)**2;return 2*Math.asin(Math.min(1,Math.sqrt(s)));}
 function fBearing(a,b,c,d){const y=Math.sin((d-b)*D2R)*Math.cos(c*D2R);const x=Math.cos(a*D2R)*Math.sin(c*D2R)-Math.sin(a*D2R)*Math.cos(c*D2R)*Math.cos((d-b)*D2R);return(Math.atan2(y,x)*R2D+360)%360;}
 function fDest(a,b,brg,dist){const la=a*D2R,lo=b*D2R,t=brg*D2R;const la2=Math.asin(Math.sin(la)*Math.cos(dist)+Math.cos(la)*Math.sin(dist)*Math.cos(t));const lo2=lo+Math.atan2(Math.sin(t)*Math.sin(dist)*Math.cos(la),Math.cos(dist)-Math.sin(la)*Math.sin(la2));return[la2*R2D,((lo2*R2D+540)%360)-180];}
-function drawTrack(){
+function drawTrack(pt){
   if(!map||typeof L==="undefined")return;
   if(issTrackLayer){map.removeLayer(issTrackLayer);issTrackLayer=null;}
-  if(issFixes.length<2)return;
-  const F1=issFixes[issFixes.length-1];let F0=null;
-  for(let i=issFixes.length-2;i>=0;i--){if(F1.t-issFixes[i].t>=10000){F0=issFixes[i];break;}}
-  if(!F0)F0=issFixes[0];
-  if(!F0)return;
-  const dt=(F1.t-F0.t)/1000;if(dt<2||!isFinite(dt))return;
-  const om=fCentral(F0.la,F0.lo,F1.la,F1.lo)/dt;
-  if(!isFinite(om)||om<=0||om>0.01)return;
-  const brg=fBearing(F0.la,F0.lo,F1.la,F1.lo);
+  const v=issVector();if(!v)return;
+  const F1=(pt&&isFinite(pt.la)&&isFinite(pt.lo))?{la:pt.la,lo:pt.lo}:v.F1;
   const past=[],fut=[];
   for(let m=-60;m<=60;m+=2){
-    const ts=m*60,p=fDest(F1.la,F1.lo,brg,om*ts);
+    const ts=m*60,p=fDest(F1.la,F1.lo,v.brg,v.om*ts);
     if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>90)continue;
     let ln=p[1]-15.0410686*ts/3600;ln=((ln+540)%360)-180;
     (m<=0?past:fut).push([p[0],ln]);
@@ -622,7 +659,8 @@ function drawTrack(){
   segs(fut).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:2,opacity:.85,interactive:false}).addTo(issTrackLayer));
   issTrackLayer.addTo(map);
 }
-/* ISS polling self-schedules inside trackISS (2.5s burst until track draws, then 5s/12s) */
+setInterval(tickISS,2000);
+/* ISS polling self-schedules inside trackISS (2.5s burst until track draws, then 5s/12s); tickISS glides the dot every 2s between fixes */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
 const AIRPORTS=[{icao:"KJFK",n:"New York JFK",lat:40.64,lon:-73.78},{icao:"EGLL",n:"London Heathrow",lat:51.47,lon:-0.45},{icao:"OMDB",n:"Dubai",lat:25.25,lon:55.36},{icao:"VIDP",n:"Delhi",lat:28.57,lon:77.10},{icao:"RJTT",n:"Tokyo Haneda",lat:35.55,lon:139.78},{icao:"YSSY",n:"Sydney",lat:-33.95,lon:151.18},{icao:"FACT",n:"Cape Town",lat:-33.97,lon:18.60},{icao:"SBGR",n:"São Paulo",lat:-23.44,lon:-46.47},{icao:"HECA",n:"Cairo",lat:30.12,lon:31.41},{icao:"WSSS",n:"Singapore",lat:1.36,lon:103.99}];
@@ -670,7 +708,7 @@ $("aboutModal").addEventListener("click",e=>{if(e.target===$("aboutModal"))$("ab
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("aboutModal").style.display="none";});
 
 /* ---------- BOOT: map-critical feeds first, secondary panels deferred ---------- */
-initMap();loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();renderNews(false);loadWeather();trackISS();
+initMap();loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();renderNews(false);loadWeather();restoreISS();trackISS();
 setTimeout(()=>{loadMarkets();loadWiki();loadPulse();loadLaunches();},1500);
 setInterval(()=>{loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();},300000);
 setInterval(()=>{if(newsCache[newsCat]&&Date.now()-newsCache[newsCat].at>6e5)$("freshNews").textContent+=" · STALE";},3e4);
