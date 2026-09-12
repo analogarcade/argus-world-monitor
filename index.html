@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ARGUS — free live world event monitor: earthquake map, ISS tracker, storms, volcanoes, weather, news, launches and markets. Single file, no keys, no signup.">
+<meta name="theme-color" content="#090b0c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23090b0c'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%2322c55e' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%2322c55e'/%3E%3C/svg%3E">
 <title>ARGUS — Open-Source Event Monitor</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -25,7 +28,10 @@ header{display:flex;align-items:center;gap:14px;padding:8px 18px;border-bottom:1
 body.offline #offlineBadge{display:block}
 #clock{margin-left:auto;text-align:right;font-size:13px;white-space:nowrap}
 #clock small{display:block;color:var(--dim);font-size:10px;letter-spacing:1px}
-main{padding:10px 14px;display:flex;flex-direction:column;gap:14px;min-height:calc(100vh - 110px)}
+main{padding:0 0 14px;display:flex;flex-direction:column;gap:14px;min-height:calc(100vh - 110px)}
+main>*:not(#panelMap){margin-left:14px;margin-right:14px}
+#panelMap{border-radius:0;border-left:none;border-right:none;border-top:none}
+#panelMap .phead:first-child{border-radius:0}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.35)}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:1px solid var(--green);outline-offset:1px}
 .newsItem:hover,.ev:hover{box-shadow:inset 2px 0 0 var(--green)}
@@ -34,7 +40,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:1px solid 
 button{background:#1a1f22;border:1px solid var(--border);color:var(--txt);font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:6px;cursor:pointer}
 button:hover{border-color:var(--green);color:#fff}
 button.active{background:#0f2c1b;border-color:var(--green);color:#fff}
-#map{height:60vh;min-height:400px;background:#141414;z-index:1}
+#map{height:calc(100vh - 140px);height:calc(100dvh - 140px);min-height:400px;background:#141414;z-index:1}
 /* native map tiles need no filter */
 .dmk{width:11px;height:11px;background:var(--c,#fb923c);transform:rotate(45deg);border:2px solid rgba(0,0,0,.85);box-shadow:0 0 7px var(--c,#fb923c)}
 #mapFallback{display:none;padding:40px;text-align:center;color:var(--dim)}
@@ -46,11 +52,6 @@ button.active{background:#0f2c1b;border-color:var(--green);color:#fff}
 #bottomgrid>.panel,#midgrid>.panel{display:flex;flex-direction:column;min-width:0}
 #bottomgrid .scroll,#midgrid .scroll{flex:1 1 auto;min-height:160px;max-height:480px}
 #mapWrap{position:relative}
-#layersOverlay{position:absolute;left:10px;top:10px;z-index:500;background:rgba(13,16,18,.94);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:168px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
-#layersOverlay h4{font-size:10px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
-#layersOverlay label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12px;cursor:pointer;border-radius:4px}
-#layersOverlay label:hover{background:#18211a}
-#layersOverlay input{accent-color:var(--green);width:14px;height:14px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 main>*{animation:rise .45s ease both}
 main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s}main>*:nth-child(4){animation-delay:.15s}main>*:nth-child(5){animation-delay:.2s}
@@ -96,11 +97,35 @@ footer{padding:10px 18px;color:var(--faint);font-size:10px;display:flex;justify-
 .leaflet-popup-content-wrapper{background:#0e1112!important;color:var(--txt)!important;border:1px solid var(--border);border-radius:8px}
 .leaflet-popup-content{font-family:var(--mono)!important;font-size:13px!important;line-height:1.6!important}
 .leaflet-popup-tip{background:#0e1112!important;border:1px solid var(--border)}
-.leaflet-container{font-family:var(--mono)!important}
-.leaflet-bar a{background:#111415!important;color:#dde3e5!important;border-color:#2a2e30!important}
-.leaflet-bar a:hover{background:#1c2225!important;color:#fff!important}
-#panelMap .phead:last-child{justify-content:center;text-align:center}
-@media(max-width:1200px){#bottomgrid{grid-template-columns:minmax(0,1fr)}#midgrid{grid-template-columns:minmax(0,1fr)}#map{height:44vh}}
+.leaflet-container{font-family:var(--mono)!important;background:#232227;cursor:default}
+.leaflet-marker-icon{cursor:pointer}
+.leaflet-control-attribution{background:rgba(9,11,12,.7)!important;color:#5b6367!important;font-size:9px!important;padding:1px 6px}
+.leaflet-control-attribution a{color:#5b6367!important}
+.leaflet-popup{margin-bottom:18px}
+.leaflet-popup-content{margin:10px 12px;max-width:240px}
+#panelMap .phead:last-child{justify-content:flex-start;text-align:left}
+#panelMap .legend{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;max-width:100%;padding-bottom:2px;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+#panelMap .legend::-webkit-scrollbar{display:none}
+#panelMap .legend span{white-space:nowrap}
+#panelMap .legend span:last-child{padding-right:26px}
+@media(max-width:1200px){#bottomgrid{grid-template-columns:minmax(0,1fr)}#midgrid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){
+  body{font-size:13px}
+  header{padding:8px 12px;gap:10px}
+  main{padding:0 0 10px;display:flex;flex-direction:column;gap:10px}
+  main>*:not(#panelMap){margin-left:8px;margin-right:8px}
+  #map{height:auto;aspect-ratio:1/1;max-height:calc(100vh - 190px);max-height:calc(100dvh - 190px);min-height:0}
+  .legend{font-size:10px;gap:10px}
+  .leaflet-popup-content{font-size:12px!important}
+  #panelClicked #locBody{gap:2px 16px}
+  footer{padding:8px 12px}
+}
+@media(pointer:coarse){
+  button{padding:10px 16px}
+  .phead .tools button,.phead .tools select{font-size:12px;padding:9px 14px}
+  select{font-size:12px;padding:8px 10px}
+  footer button{font-size:12px;padding:8px 14px}
+}
 select{background:#1a1f22;border:1px solid var(--border);color:var(--txt);font-family:var(--mono);font-size:11px;padding:5px 8px;border-radius:6px;outline:none;max-width:100%}
 select:focus{border-color:var(--green)}
 #aboutModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:18px}
@@ -111,7 +136,9 @@ select:focus{border-color:var(--green)}
 #aboutCard p,#aboutCard li{color:var(--dim);font-size:12px}
 #aboutCard ul{padding-left:18px} #aboutCard li{margin:3px 0}
 .leaflet-tooltip.evtip{background:#0e1112!important;border:1px solid var(--border)!important;color:var(--txt)!important;font-family:var(--mono)!important;font-size:12px!important;border-radius:6px!important}
-.issmk{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #38bdf8;box-shadow:0 0 12px #fff}
+.issWrap{display:flex;align-items:center;gap:5px;pointer-events:none;transform:translateX(-4px)}
+.issmk{width:12px;height:12px;flex:0 0 12px;border-radius:50%;background:#fff;border:2px solid #38bdf8;box-shadow:0 0 12px #fff,0 0 4px #38bdf8}
+.issLbl{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:1px;color:#fff;background:rgba(9,11,12,.88);border:1px solid #38bdf8;border-radius:4px;padding:1px 5px;white-space:nowrap;box-shadow:0 0 8px rgba(56,189,248,.45)}
 .leaflet-tooltip.evtip:before{display:none}
 .phead .tools button,.phead .tools select{font-size:11px;padding:5px 10px}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#232a2d;border-radius:4px}
@@ -128,24 +155,13 @@ select:focus{border-color:var(--green)}
 <main>
   <section class="panel" id="panelMap">
     <div class="phead"><span id="mapTitle">LIVE MAP · QUAKES + MICRO-QUAKES</span>
-      <span class="tools"><span class="fresh">Hover markers · click map for intel</span></span>
+      <span class="tools"><span class="fresh">Tap markers · tap map for intel</span></span>
     </div>
     <div id="mapWrap">
     <div id="map"></div>
-    <div id="layersOverlay"><h4>MAP LAYERS · OFF BY DEFAULT</h4>
-      <label><input type="checkbox" id="lyQuake"> Quakes M4.5+</label>
-      <label><input type="checkbox" id="lyMinor"> Micro M2.5–4.5</label>
-      <label><input type="checkbox" id="lyEonet"> Storms</label>
-      <label><input type="checkbox" id="lyFire"> Fires</label>
-      <label><input type="checkbox" id="lyAir"> Airports</label>
-      <label><input type="checkbox" id="lyAQI"> Air quality</label>
-      <label><input type="checkbox" id="lyNight"> Night shade</label>
-      <label><input type="checkbox" id="lyRadar"> Radar</label>
-      <label><input type="checkbox" id="lyISS"> ISS + track</label>
-    </div>
     <div id="mapFallback"><div class="stateBox"><div class="big">MAP UNAVAILABLE</div>Map library or tiles could not load (offline or CDN blocked). All other panels keep working.<br><br><button onclick="location.reload()">RETRY</button></div></div>
     </div>
-    <div class="phead"><span class="fresh" id="freshEv">Updated —</span><span class="fresh" id="coords" title="Cursor coordinates">—</span><span class="legend"><span><i style="background:#22c55e"></i>Q&lt;5.5</span><span><i style="background:#f59e0b"></i>Q5.5–6</span><span><i style="background:#ef4444"></i>Q6+</span><span><i style="background:transparent;border:1px solid #38bdf8"></i>M2.5–4.5</span><span><i class="sq" style="background:#38bdf8"></i>Storm</span><span><i class="sq" style="background:#fb923c"></i>Fire</span><span><i class="sq" style="background:#ef4444"></i>Volcano</span><span><i class="sq" style="background:#60a5fa"></i>Flood</span><span><i style="background:#fff;border:1px solid #38bdf8"></i>ISS</span><span><i style="background:transparent;border:1px dashed #8b9397"></i>ISS PATH</span><span><i style="background:#0e1112;border:1px solid #38bdf8"></i>AIR</span><span><i style="background:#0e1112;border:1px solid #eab308"></i>AQI</span></span></div>
+    <div class="phead"><span class="fresh" id="freshEv">Updated —</span><span class="fresh" id="coords" title="Cursor coordinates">—</span><span class="legend"><span><i style="background:#22c55e"></i>Q&lt;5.5</span><span><i style="background:#f59e0b"></i>Q5.5–6</span><span><i style="background:#ef4444"></i>Q6+</span><span><i style="background:transparent;border:1px solid #38bdf8"></i>M2.5–4.5</span><span><i class="sq" style="background:#38bdf8"></i>Storm</span><span><i class="sq" style="background:#ef4444"></i>Volcano</span><span><i class="sq" style="background:#60a5fa"></i>Flood</span><span><i style="background:#fff;border:1px solid #38bdf8"></i>ISS</span><span><i style="background:transparent;border:1px dashed #8b9397"></i>ISS PATH</span><span><i style="background:#0e1112;border:1px solid #38bdf8"></i>AIR</span><span><i style="background:#0e1112;border:1px solid #eab308"></i>AQI</span></span></div>
   </section>
 
   <section class="panel" id="panelClicked">
@@ -195,14 +211,14 @@ select:focus{border-color:var(--green)}
     <div class="scroll" id="wikiList" style="max-height:300px"><div class="stateBox"><div class="big">LOADING...</div></div></div>
   </section>
 </main>
-<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BigDataCloud · RestCountries · BBC RSS · RocketLaunch.Live · RainViewer · open-notify · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
+<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BigDataCloud · RestCountries · BBC RSS · RocketLaunch.Live · wheretheiss.at · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
 
 <div id="aboutModal"><div id="aboutCard">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2>ARG<span>US</span></h2><button id="aboutClose">CLOSE ×</button></div>
   <p style="margin-top:6px">Live data from free public sources — no accounts, no keys, no backend, nothing invented. Unreachable sources say so.</p>
   <h4>HOW TO USE</h4>
   <ul>
-    <li><b style="color:var(--txt)">Map</b> — hover any marker for instant detail, click for more. Toggle layers in MAP LAYERS as needed. Event feeds auto-refresh.</li>
+    <li><b style="color:var(--txt)">Map</b> — all layers always on: quakes, micro-quakes, storms, airports, air quality, night shade, ISS + track. Fixed single-world view (no zoom/pan) — click any marker for detail. Feeds auto-refresh.</li>
     <li><b style="color:var(--txt)">Click the map</b> — instant place name, country facts, weather in the strip below.</li>
     <li><b style="color:var(--txt)">News dropdown</b> — 9 world regions, live.</li>
     <li><b style="color:var(--txt)">Status bar</b> — live state of every source; anything unreachable says so.</li>
@@ -210,13 +226,13 @@ select:focus{border-color:var(--green)}
   <h4>LIVE SOURCES</h4>
   <ul>
     <li>Map — <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> dark canvas + <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></li>
-    <li>Quakes — <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> · Micro — <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a> · Storms, fires, volcanoes — <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a></li>
-    <li>Launches — <a href="https://rocketlaunch.live/" target="_blank" rel="noopener">RocketLaunch.Live</a> · Radar — <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a></li>
+    <li>Quakes — <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> · Micro — <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a> · Storms, volcanoes — <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a></li>
+    <li>Launches — <a href="https://rocketlaunch.live/" target="_blank" rel="noopener">RocketLaunch.Live</a> · ISS — <a href="https://wheretheiss.at/" target="_blank" rel="noopener">wheretheiss.at</a></li>
     <li>Weather, airports + air quality — <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Place names — BigDataCloud · Country facts — RestCountries</li>
     <li>Event log — <a href="https://en.wikipedia.org/wiki/Portal:Current_events" target="_blank" rel="noopener">Wikipedia Current Events</a> · News — BBC RSS · Markets — Stooq, CoinGecko, Frankfurter</li>
   </ul>
   <h4>SHORTCUTS</h4>
-  <ul><li><b style="color:var(--txt)">/</b> focus search · <b style="color:var(--txt)">Esc</b> close dialogs</li></ul>
+  <ul><li><b style="color:var(--txt)">Esc</b> close dialogs</li></ul>
 </div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -224,7 +240,6 @@ select:focus{border-color:var(--green)}
 const $=id=>document.getElementById(id);
 const rel=ts=>{if(!ts)return"—";const s=Math.max(0,(Date.now()-ts)/1e3);if(s<60)return Math.floor(s)+"s ago";if(s<36e2)return Math.floor(s/60)+"m ago";if(s<864e2)return Math.floor(s/36e2)+"h ago";return Math.floor(s/864e2)+"d ago";};
 const utc=d=>d.toISOString().slice(11,19);
-const pill=(id,t,c)=>{const e=$(id);if(!e)return;e.textContent=t;e.className="pill "+c;};
 const stamp=id=>{const t="Updated "+utc(new Date())+" UTC";$(id).textContent=t;$("footFresh").textContent=t;};
 async function get(url,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms||15000);try{const r=await fetch(url,{signal:c.signal});clearTimeout(t);if(!r.ok)throw new Error(r.status);return r;}catch(e){clearTimeout(t);throw e;}}
 function tick(){const d=new Date();$("utcTime").textContent="UTC "+utc(d);$("utcDate").textContent=d.toISOString().slice(0,10);}
@@ -236,77 +251,78 @@ addEventListener("online",updNet);addEventListener("offline",updNet);updNet();
 let map=null,quakeLayer=null,minorLayer=null,eonetLayer=null,tileLayer=null;
 const TILE_URL="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",TILE_ATTR="Esri, HERE, Garmin, OpenStreetMap contributors | events: USGS, EMSC";
 let quakes=[],minors=[],eonets=[],newsItems=[],newsCat="world",newsCache={};
-let magFilter=4.5,showQuakes=false,showMinor=false,showEonet=false,showFire=false,showAir=false,showISS=false;
+let magFilter=4.5;
 let qMarks=[],wxCache=[];
 const MINOR_COLOR="#38bdf8";
-const ECAT={severeStorms:{l:"Storm",c:"#38bdf8"},wildfires:{l:"Fire",c:"#fb923c"},volcanoes:{l:"Volcano",c:"#ef4444"},floods:{l:"Flood",c:"#60a5fa"}};
+const ECAT={severeStorms:{l:"Storm",c:"#38bdf8"},volcanoes:{l:"Volcano",c:"#ef4444"},floods:{l:"Flood",c:"#60a5fa"}};
 const WMO={0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Icy fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",56:"Freezing drizzle",57:"Freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",80:"Light showers",81:"Showers",82:"Violent showers",85:"Snow showers",86:"Snow showers",95:"Thunderstorm",96:"Storm + hail",99:"Storm + hail"};
 const CITIES=[{n:"New York",lat:40.71,lon:-74.0},{n:"London",lat:51.5,lon:-0.12},{n:"Tokyo",lat:35.68,lon:139.69},{n:"Sydney",lat:-33.87,lon:151.21},{n:"Cairo",lat:30.04,lon:31.24},{n:"Mumbai",lat:19.08,lon:72.88},{n:"São Paulo",lat:-23.55,lon:-46.63},{n:"Singapore",lat:1.35,lon:103.82}];
-/* ---------- MAP (Esri dark canvas, no key) ---------- */
-function makeTiles(){const l=L.tileLayer(TILE_URL,{maxZoom:18,maxNativeZoom:16,keepBuffer:4,attribution:TILE_ATTR});l.on("tileload",()=>pill("stMap","ONLINE","ok"));l.on("tileerror",()=>{if($("stMap").textContent!=="ONLINE")pill("stMap","DEGRADED","warn");});return l;}
+/* ---------- MAP (Esri dark canvas, no key — fixed single-world view, no zoom/pan) ---------- */
+const WORLD_BOUNDS=[[-85,-180],[85,180]];
+function makeTiles(){return L.tileLayer(TILE_URL,{maxZoom:18,maxNativeZoom:16,keepBuffer:4,noWrap:true,bounds:WORLD_BOUNDS,attribution:TILE_ATTR});}
+function fitMap(){
+  if(!map)return;
+  try{
+    const el=$("map");
+    const w=el.clientWidth||window.innerWidth;
+    const z=Math.log2(w/256);
+    map.setView([22,0],z,{animate:false});
+  }catch(e){}
+}
 function initMap(){
-  if(typeof L==="undefined"){$("map").style.display="none";$("mapFallback").style.display="block";$("layersOverlay").style.display="none";pill("stMap","OFFLINE","bad");return;}
-  map=L.map("map",{worldCopyJump:true,zoomControl:false}).setView([25,10],2);
+  if(typeof L==="undefined"){$("map").style.display="none";$("mapFallback").style.display="block";return;}
+  map=L.map("map",{worldCopyJump:false,zoomControl:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false,dragging:false,tapTolerance:24,zoomSnap:.001,zoomDelta:.25,maxBounds:WORLD_BOUNDS,maxBoundsViscosity:1.0}).setView([22,0],2);
   tileLayer=makeTiles();tileLayer.addTo(map);
   quakeLayer=L.layerGroup().addTo(map);minorLayer=L.layerGroup().addTo(map);eonetLayer=L.layerGroup().addTo(map);
+  airLayer=L.layerGroup().addTo(map);aqiLayer=L.layerGroup().addTo(map);
   map.on("click",onMapClick);drawNight();
-  L.control.scale({imperial:false,position:"bottomleft"}).addTo(map);
-  L.control.zoom({position:"topright"}).addTo(map);
-  map.on("mousemove",e=>{$("coords").textContent=e.latlng.lat.toFixed(2)+"°, "+e.latlng.lng.toFixed(2)+"°";});
-  setTimeout(()=>{if($("stMap").textContent==="LOADING")pill("stMap","DEGRADED","warn");},15000);
+  map.on("mousemove",e=>{const c=$("coords");if(c)c.textContent=e.latlng.lat.toFixed(2)+"°, "+e.latlng.lng.toFixed(2)+"°";});
+  fitMap();
+  setTimeout(fitMap,300);
+  let rT=null;const refit=()=>{try{map.invalidateSize();}catch(e){}clearTimeout(rT);rT=setTimeout(fitMap,150);};
+  addEventListener("resize",refit);addEventListener("orientationchange",()=>setTimeout(refit,250));
 }
 const magColor=m=>m>=6?"#ef4444":m>=5.5?"#f59e0b":"#22c55e";
 function drawAll(){
   if(!map)return;
   quakeLayer.clearLayers();minorLayer.clearLayers();eonetLayer.clearLayers();qMarks=[];
-  if(showQuakes)quakes.filter(q=>q.mag>=magFilter).forEach(q=>{
-    const mk=L.circleMarker([q.lat,q.lon],{radius:4+q.mag*1.6,color:magColor(q.mag),weight:1.5,fillColor:magColor(q.mag),fillOpacity:.55});
+  quakes.filter(q=>q.mag>=magFilter).forEach(q=>{
+    const mk=L.circleMarker([q.lat,q.lon],{radius:5+q.mag*1.8,color:magColor(q.mag),weight:2,fillColor:magColor(q.mag),fillOpacity:.6});
     mk.bindTooltip("M"+q.mag.toFixed(1)+" · "+q.place+" · "+rel(q.time),{className:"evtip",direction:"top",offset:[0,-8],sticky:true});
     mk.bindPopup("<b>M"+q.mag.toFixed(1)+"</b> · "+q.place+"<br>Depth "+q.depth.toFixed(0)+" km · "+rel(q.time)+"<br><a href='"+q.url+"' target='_blank' rel='noopener'>USGS event page →</a>");
     quakeLayer.addLayer(mk);qMarks.push(mk);});
-  if(showMinor)minors.forEach(m=>{
-    const mk=L.circleMarker([m.lat,m.lon],{radius:3,color:MINOR_COLOR,weight:1,fillColor:MINOR_COLOR,fillOpacity:.5});
+  minors.forEach(m=>{
+    const mk=L.circleMarker([m.lat,m.lon],{radius:4.5,color:MINOR_COLOR,weight:1.5,fillColor:MINOR_COLOR,fillOpacity:.55});
     mk.bindTooltip("M"+m.mag.toFixed(1)+" · "+m.place+" · "+rel(m.time),{className:"evtip",direction:"top",offset:[0,-6],sticky:true});
-    mk.bindTooltip("M"+m.mag.toFixed(1)+" · "+m.place,{className:"evtip",direction:"top",offset:[0,-6]});
     mk.bindPopup("<b>M"+m.mag.toFixed(1)+"</b> · "+m.place+"<br>Depth "+m.depth.toFixed(0)+" km · "+rel(m.time)+"<br>Source: EMSC real-time feed");
     minorLayer.addLayer(mk);});
-  if(showEonet||showFire)eonets.filter(e=>e.cat==="wildfires"?showFire:showEonet).forEach(e=>{
+  eonets.forEach(e=>{
     const meta=ECAT[e.cat]||{l:e.cat,c:"#a78bfa"};
-    const mk=L.marker([e.lat,e.lon],{icon:L.divIcon({className:"",html:"<div class='dmk' style='--c:"+meta.c+"'></div>",iconSize:[13,13],iconAnchor:[7,7]})});
+    const mk=L.marker([e.lat,e.lon],{icon:L.divIcon({className:"",html:"<div class='dmk' style='--c:"+meta.c+"'></div>",iconSize:[15,15],iconAnchor:[8,8]})});
     mk.bindTooltip(meta.l+" · "+e.title+" · "+rel(e.time),{className:"evtip",direction:"top",offset:[0,-8],sticky:true});
     mk.bindPopup("<b>"+e.title+"</b><br>"+meta.l+" · "+rel(e.time)+"<br>"+e.lat.toFixed(2)+", "+e.lon.toFixed(2)+(e.src?"<br><a href='"+e.src+"' target='_blank' rel='noopener'>Source →</a>":""));
     eonetLayer.addLayer(mk);});
-  const eoVis=eonets.filter(e=>e.cat==="wildfires"?showFire:showEonet).length;
-  $("mapTitle").textContent="LIVE MAP · "+quakes.filter(q=>q.mag>=magFilter).length+" QUAKES · "+(showMinor?minors.length:0)+" MICRO · "+eoVis+" EVENTS";
+  $("mapTitle").textContent="LIVE MAP · "+quakes.filter(q=>q.mag>=magFilter).length+" QUAKES · "+minors.length+" MICRO · "+eonets.length+" EVENTS";
 }
-$("lyQuake").addEventListener("change",e=>{showQuakes=e.target.checked;if(showQuakes&&!quakes.length)loadQuakes();else drawAll();});
-$("lyMinor").addEventListener("change",e=>{showMinor=e.target.checked;if(showMinor&&!minors.length)loadMinor();else drawAll();});
-$("lyEonet").addEventListener("change",e=>{showEonet=e.target.checked;if(showEonet&&!eonets.length)loadEonet();else drawAll();});
-$("lyFire").addEventListener("change",e=>{showFire=e.target.checked;if(showFire&&!eonets.length)loadEonet();else drawAll();});
-$("lyAir").addEventListener("change",e=>{showAir=e.target.checked;if(showAir){if(!airLayer)loadAir();else if(map)airLayer.addTo(map);}else if(airLayer&&map)map.removeLayer(airLayer);});
-$("lyNight").addEventListener("change",e=>{nightOn=e.target.checked;drawNight();});
-$("lyRadar").addEventListener("change",e=>{if(e.target.checked)enableRadar();});
-$("lyISS").addEventListener("change",e=>{showISS=e.target.checked;if(showISS)trackISS();else{if(issMarker&&map){map.removeLayer(issMarker);issMarker=null;}if(issTrackLayer&&map){map.removeLayer(issTrackLayer);issTrackLayer=null;}issFixes=[];const pi=$("pulseIss");if(pi)pi.innerHTML="";}});
-/* event feeds auto-refresh every 5 min */
-setInterval(()=>{loadQuakes();loadMinor();loadEonet();},300000);
+/* all map layers always on — no toggles; feeds auto-refresh every 5 min (see BOOT) */
 /* map data auto-refreshes; panel buttons refresh their own feeds */
 
 /* ---------- QUAKES (USGS, real) ---------- */
 async function loadQuakes(){
-  pill("stQuake","LOADING","warn");
+  
   try{
     const r=await get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",20000);
     const d=await r.json();
     quakes=(d.features||[]).map(f=>({mag:f.properties.mag||0,place:f.properties.place||"Unknown",time:f.properties.time,url:f.properties.url,lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],depth:f.geometry.coordinates[2]||0})).sort((a,b)=>b.mag-a.mag);
-    pill("stQuake","ONLINE","ok");drawAll();renderAlerts();renderEvList();stamp("freshEv");
+    drawAll();renderAlerts();renderEvList();stamp("freshEv");
     const pq=$("pulseQuake"),mx=quakes.reduce((a,q)=>q.mag>a?q.mag:a,0);
     if(pq)pq.innerHTML=quakes.length?("<b style='color:#fff'>"+quakes.length+"</b> quakes/24h · max <b style='color:var(--red)'>M"+mx.toFixed(1)+"</b>"):"";
-  }catch(e){quakes=[];pill("stQuake","UNAVAILABLE","bad");drawAll();renderAlerts();renderEvList();}
+  }catch(e){quakes=[];drawAll();renderAlerts();renderEvList();}
 }
 
 /* ---------- MICRO-QUAKES (EMSC real-time FDSN, real) ---------- */
 async function loadMinor(){
-  pill("stMinor","LOADING","warn");
+  
   try{
     const t=new Date(),t0=new Date(t.getTime()-7*864e5),f=d=>d.toISOString().slice(0,10);
     const r=await get("https://www.seismicportal.eu/fdsnws/event/1/query?starttime="+f(t0)+"&endtime="+f(t)+"&minmagnitude=2.5&maxmagnitude=4.5&orderby=time&format=text&limit=150",25000);
@@ -316,27 +332,28 @@ async function loadMinor(){
       if(!isFinite(la)||!isFinite(lo)||!isFinite(mg))return;
       minors.push({mag:mg,place:(p[12]||"Unknown").trim()||"Unknown",time:Date.parse(p[1])||Date.now(),lat:la,lon:lo,depth:parseFloat(p[4])||0});});
     minors.sort((a,b)=>b.time-a.time);
-    pill("stMinor","ONLINE ("+minors.length+")","ok");drawAll();stamp("freshEv");
-  }catch(e){minors=[];pill("stMinor","UNAVAILABLE","bad");drawAll();}
+    drawAll();stamp("freshEv");
+  }catch(e){minors=[];drawAll();}
 }
 
 /* ---------- STORMS + VOLCANOES (NASA EONET, real — service flaps, honest fallback) ---------- */
 async function loadEonet(){
-  pill("stEonet","LOADING","warn");
+  
   try{
     const r=await get("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200",30000);
     const d=await r.json();
     eonets=[];
     (d.events||[]).forEach(e=>{
       const cat0=((e.categories||[])[0]||{}).id||"other";
+      if(cat0==="wildfires")return;
       const g=(e.geometry||[]).filter(x=>x.type==="Point");
       if(!g.length)return;
       const last=g[g.length-1];
       eonets.push({title:e.title||"Untitled",cat:cat0,time:Date.parse(last.date)||Date.now(),lat:last.coordinates[1],lon:last.coordinates[0],src:((e.sources||[])[0]||{}).url||""});
     });
     eonets.sort((a,b)=>b.time-a.time);
-    pill("stEonet","ONLINE ("+eonets.length+")","ok");drawAll();renderAlerts();stamp("freshEv");
-  }catch(e){eonets=[];pill("stEonet","UNAVAILABLE","bad");drawAll();renderAlerts();}
+    drawAll();renderAlerts();stamp("freshEv");
+  }catch(e){eonets=[];drawAll();renderAlerts();}
 }
 
 /* ---------- ALERTS (derived from live feeds only) ---------- */
@@ -346,11 +363,10 @@ function renderAlerts(){
   eonets.filter(e=>e.cat==="volcanoes").slice(0,2).forEach(e=>h+="<div class='alert HIGH' data-lat='"+e.lat+"' data-lon='"+e.lon+"'><div style='color:var(--red);font-size:10px;letter-spacing:1px'>HIGH · VOLCANO</div><div>"+e.title+"</div><small>"+rel(e.time)+" · NASA EONET</small></div>");
   quakes.filter(q=>q.mag>=5.5&&q.mag<6).slice(0,3).forEach(q=>h+="<div class='alert MEDIUM' data-lat='"+q.lat+"' data-lon='"+q.lon+"'><div style='color:var(--amber);font-size:10px;letter-spacing:1px'>MEDIUM · M"+q.mag.toFixed(1)+" QUAKE</div><div>"+q.place+"</div><small>"+rel(q.time)+" · USGS</small></div>");
   eonets.filter(e=>e.cat==="severeStorms").slice(0,2).forEach(e=>h+="<div class='alert MEDIUM' data-lat='"+e.lat+"' data-lon='"+e.lon+"'><div style='color:var(--amber);font-size:10px;letter-spacing:1px'>MEDIUM · STORM</div><div>"+e.title+"</div><small>"+rel(e.time)+" · NASA EONET</small></div>");
-  eonets.filter(e=>e.cat==="wildfires").slice(0,2).forEach(e=>h+="<div class='alert WATCH' data-lat='"+e.lat+"' data-lon='"+e.lon+"'><div style='color:var(--cyan);font-size:10px;letter-spacing:1px'>WATCH · FIRE</div><div>"+e.title+"</div><small>"+rel(e.time)+" · NASA EONET</small></div>");
   if(!quakes.length)h="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>USGS feed unreachable.<br><br><button onclick='loadQuakes()'>RETRY</button></div>";
   else if(!h)h="<div class='stateBox'><div class='big'>NO ACTIVE VERIFIED ALERTS</div>No M5.5+ quakes in the last 24h per USGS.</div>";
   box.innerHTML=h;
-  box.querySelectorAll(".alert[data-lat]").forEach(el=>el.onclick=()=>{if(map)map.flyTo([+el.dataset.lat,+el.dataset.lon],6,{duration:1.2});});
+  box.querySelectorAll(".alert[data-lat]").forEach(el=>el.onclick=()=>{if(map)map.panTo([+el.dataset.lat,+el.dataset.lon],{animate:true,duration:1});});
   stamp("freshAlerts");
 }
 /* single quake list */
@@ -360,7 +376,7 @@ function renderEvList(){
   if(!quakes.length){box.innerHTML="<div class='stateBox'><div class='big'>NO DATA AVAILABLE</div>USGS feed failed to load.<br><br><button onclick='loadQuakes()'>RETRY</button></div>";return;}
   box.innerHTML="<div style='padding:8px 14px;color:var(--dim);font-size:11px'>"+list.length+" events · M4.5+ / 24H · USGS</div>"+
     (list.slice(0,40).map(q=>"<div class='ev' data-lat='"+q.lat+"' data-lon='"+q.lon+"'><b style='color:"+magColor(q.mag)+"'>M"+q.mag.toFixed(1)+"</b> "+q.place+"<br><small>"+rel(q.time)+" · "+q.depth.toFixed(0)+" km deep</small></div>").join("")||"<div class='stateBox'><div class='big'>NONE ABOVE FILTER</div></div>");
-  box.querySelectorAll(".ev").forEach((el,i)=>el.onclick=()=>{if(!map)return;map.flyTo([+el.dataset.lat,+el.dataset.lon],6,{duration:1.2});const mk=qMarks[i];if(mk)setTimeout(()=>{try{if(mk._map)mk.openPopup();}catch(e){}},1300);});
+  box.querySelectorAll(".ev").forEach((el,i)=>el.onclick=()=>{if(!map)return;map.panTo([+el.dataset.lat,+el.dataset.lon],{animate:true,duration:1});const mk=qMarks[i];if(mk)setTimeout(()=>{try{if(mk._map)mk.openPopup();}catch(e){}},1100);});
 }
 
 /* ---------- NEWS (BBC RSS, real) ---------- */
@@ -379,9 +395,9 @@ async function loadFeed(cat){
 async function renderNews(useCache){
   const box=$("newsList");
   if(useCache&&newsCache[newsCat]){paintNews(newsCache[newsCat]);return;}
-  box.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div></div>";pill("stNews","LOADING","warn");
-  try{const items=await loadFeed(newsCat);newsCache[newsCat]={items,at:Date.now()};newsItems=items;paintNews(newsCache[newsCat]);pill("stNews","ONLINE","ok");stamp("freshNews");}
-  catch(e){newsItems=[];pill("stNews","DEGRADED","bad");
+  box.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div></div>";
+  try{const items=await loadFeed(newsCat);newsCache[newsCat]={items,at:Date.now()};newsItems=items;paintNews(newsCache[newsCat]);stamp("freshNews");}
+  catch(e){newsItems=[];
     box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>RSS unreachable from this browser (network / CORS).<br><br><button onclick='renderNews(false)'>RETRY</button> <a href='"+FEEDS[newsCat].site+"' target='_blank' rel='noopener'>OPEN SOURCE →</a></div>";}
 }
 function paintNews(c){
@@ -404,7 +420,7 @@ async function wxSingle(city){
   }catch(e){return{city:city.n,ok:false,sub:"unreachable"};}
 }
 async function loadWeather(){
-  pill("stWx","LOADING","warn");const box=$("wxList");
+  const box=$("wxList");
   box.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div>Contacting Open-Meteo…</div>";
   try{
     const r=await get("https://api.open-meteo.com/v1/forecast?latitude="+CITIES.map(c=>c.lat).join(",")+"&longitude="+CITIES.map(c=>c.lon).join(",")+"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto",20000);
@@ -413,24 +429,23 @@ async function loadWeather(){
     wxCache=arr.map((w,i)=>{const c=w.current||{};const city=CITIES[i]||{n:"?",lat:0,lon:0};
       return{city:city.n,ok:true,t:c.temperature_2m,sub:(WMO[c.weather_code]||"—")+" · Wind "+(c.wind_speed_10m??"—")+" km/h · RH "+(c.relative_humidity_2m??"—")+"%",lat:city.lat,lon:city.lon};});
     box.innerHTML=wxCache.map((r,i)=>wxRow(r,i)).join("");
-    bindWxRows();pill("stWx","ONLINE","ok");
+    bindWxRows();
   }catch(e){
     box.innerHTML="<div class='stateBox'><div class='big'>BATCH FAILED — RETRYING PER CITY…</div></div>";
     wxCache=await Promise.all(CITIES.map(wxSingle));
     const ok=wxCache.filter(r=>r.ok).length;
     box.innerHTML=wxCache.map((r,i)=>wxRow(r,i)).join("");
     bindWxRows();
-    if(ok===wxCache.length)pill("stWx","ONLINE","ok");
-    else if(ok>0)pill("stWx","DEGRADED ("+ok+"/"+wxCache.length+")","warn");
-    else{pill("stWx","UNAVAILABLE","bad");box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>Open-Meteo unreachable (batch + per-city failed).<br><br><button onclick='loadWeather()'>RETRY</button></div>";}
+    if(ok<wxCache.length&&ok===0){box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>Open-Meteo unreachable (batch + per-city failed).<br><br><button onclick='loadWeather()'>RETRY</button></div>";}
   }
 }
-function bindWxRows(){$("wxList").querySelectorAll(".wxrow.clickable").forEach(el=>el.onclick=()=>{if(!map||typeof L==="undefined")return;const r=wxCache[+el.dataset.i];if(!r)return;map.flyTo([r.lat,r.lon],6,{duration:1.2});setTimeout(()=>L.popup().setLatLng([r.lat,r.lon]).setContent("<b>"+r.city+"</b><br>"+Math.round(r.t)+"°C · "+r.sub).openOn(map),1300);});}
+function bindWxRows(){$("wxList").querySelectorAll(".wxrow.clickable").forEach(el=>el.onclick=()=>{if(!map||typeof L==="undefined")return;const r=wxCache[+el.dataset.i];if(!r)return;map.panTo([r.lat,r.lon],{animate:true,duration:1});setTimeout(()=>L.popup().setLatLng([r.lat,r.lon]).setContent("<b>"+r.city+"</b><br>"+Math.round(r.t)+"°C · "+r.sub).openOn(map),1100);});}
 $("btnWxRefresh").onclick=loadWeather;
 
 /* ---------- MAP CLICK: real place + country + weather ---------- */
 let clickMarker=null;
 async function onMapClick(e){
+  try{const t=e.originalEvent&&e.originalEvent.target;if(t&&t.closest&&(t.closest(".leaflet-marker-icon")||t.closest(".leaflet-popup")))return;}catch(_){}
   const{lat,lng}=e.latlng;const body=$("locBody");
   body.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div>Resolving location…</div>";
   if(clickMarker&&map)map.removeLayer(clickMarker);
@@ -450,7 +465,7 @@ async function onMapClick(e){
 
 /* ---------- MARKETS (real, honest fallback) ---------- */
 async function loadMarkets(){
-  const box=$("mktBody");pill("stMkt","LOADING","warn");let rows=[],fx=[];
+  const box=$("mktBody");let rows=[],fx=[];
   try{const r=await get("https://stooq.com/q/l/?s=^spx,^ndq,^dji&f=sd2t2ohlcv&h&e=json",15000);const d=await r.json();
     (d.symbols||[]).forEach(x=>{if(x.close&&x.open)rows.push({n:String(x.symbol).replace("^",""),p:Number(x.close).toFixed(2),ch:(x.close-x.open)/x.open*100});});}catch(e){}
   try{const r=await get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",15000);const d=await r.json();
@@ -458,8 +473,8 @@ async function loadMarkets(){
     if(d.ethereum)rows.push({n:"ETH",p:"$"+Number(d.ethereum.usd).toLocaleString(),ch:d.ethereum.usd_24h_change});}catch(e){}
   try{const r=await get("https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR,GBP,JPY,INR,CNY,KRW",15000);const d=await r.json();
     if(d.rates)Object.keys(d.rates).forEach(k=>fx.push({n:"USD→"+k,p:Number(d.rates[k]).toFixed(4),date:d.date}));}catch(e){}
-  if(!rows.length&&!fx.length){pill("stMkt","UNAVAILABLE","bad");box.innerHTML="<div class='stateBox'><div class='big'>MARKET DATA UNAVAILABLE</div>Quotes unreachable.<br><br><button onclick='loadMarkets()'>RETRY</button></div>";}
-  else{pill("stMkt",fx.length||rows.length?"ONLINE":"DEGRADED",fx.length||rows.length?"ok":"warn");
+  if(!rows.length&&!fx.length){box.innerHTML="<div class='stateBox'><div class='big'>MARKET DATA UNAVAILABLE</div>Quotes unreachable.<br><br><button onclick='loadMarkets()'>RETRY</button></div>";}
+  else{
     let h="";
     if(fx.length)h+="<div style='padding:8px 14px 2px;color:var(--faint);font-size:10px;letter-spacing:1px'>FX · USD BASE · "+(fx[0].date||"")+" · FRANKFURTER</div>"+fx.map(f=>"<div class='wxrow'><span>"+f.n+"</span><span>"+f.p+"</span></div>").join("");
     if(rows.length)h+=rows.map(r=>"<div class='wxrow'><span>"+r.n+"</span><span>"+r.p+" <b style='color:"+(r.ch>=0?"var(--green)":"var(--red)")+"'>"+(r.ch>=0?"+":"")+Number(r.ch).toFixed(2)+"%</b></span></div>").join("");
@@ -470,7 +485,7 @@ async function loadMarkets(){
 let wikiItems=[];
 $("btnWikiRefresh").onclick=loadWiki;
 async function loadWiki(){
-  const box=$("wikiList");pill("stWiki","LOADING","warn");
+  const box=$("wikiList");
   box.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div>Fetching Wikipedia current events…</div>";
   const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   const dates=[];for(let o=0;o>= -2;o--){const d=new Date(Date.now()+o*864e5);dates.push(d.getUTCFullYear()+" "+MONTHS[d.getUTCMonth()]+" "+d.getUTCDate());}
@@ -492,10 +507,10 @@ async function loadWiki(){
         box.innerHTML="<div style='padding:8px 14px;color:var(--dim);font-size:11px'>"+ds+" · WIKIPEDIA · EDITOR-CURATED</div>"+
           wikiItems.map(w=>"<div class='newsItem'><span class='unreadDot'></span><h5>"+w.t.replace(/</g,"&lt;").slice(0,280)+"</h5><small>Wikipedia current events</small></div>").join("");
         box.querySelectorAll(".newsItem").forEach((el,i)=>el.onclick=()=>{el.classList.add("read");open(wikiItems[i].l,"_blank","noopener");});
-        pill("stWiki","ONLINE","ok");stamp("freshWiki");return;}
+        stamp("freshWiki");return;}
     }catch(e){/* try previous day */}
   }
-  wikiItems=[];pill("stWiki","UNAVAILABLE","bad");
+  wikiItems=[];
   box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>Wikipedia API unreachable.<br><br><button onclick='loadWiki()'>RETRY</button> <a href='https://en.wikipedia.org/wiki/Portal:Current_events' target='_blank' rel='noopener'>OPEN PORTAL →</a></div>";
 }
 
@@ -515,38 +530,25 @@ async function loadPulse(){
   stamp("freshPulse");
 }
 
-/* ---------- LIVE RADAR (RainViewer, real) ---------- */
-let radarLayer=null,radarOn=false;
-async function enableRadar(){
-  if(!map||typeof L==="undefined"||radarOn)return;
-  try{
-    const r=await get("https://api.rainviewer.com/public/weather-maps.json",20000);
-    const d=await r.json();const past=(d.radar&&d.radar.past)||[];
-    if(!past.length)throw 0;
-    const last=past[past.length-1];
-    radarLayer=L.tileLayer(d.host+last.path+"/256/{z}/{x}/{y}/2/1_1.png",{opacity:.55,maxNativeZoom:10,maxZoom:18,attribution:"Radar: RainViewer"});
-    radarLayer.addTo(map);radarOn=true;
-  }catch(err){const b=$("lyRadar");if(b)b.checked=false;}
-}
 /* ---------- UPCOMING LAUNCHES (RocketLaunch.Live, real) ---------- */
 let launches=[];
 $("btnLaunchRefresh").onclick=loadLaunches;
 function cdStr(t0){const s=(Date.parse(t0)-Date.now())/1e3;if(!isFinite(s)||s<0)return"TBD";const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return(d?d+"d ":"")+h+"h "+m+"m";}
 async function loadLaunches(){
-  const box=$("launchBody");pill("stLaunch","LOADING","warn");
+  const box=$("launchBody");
   try{
     const r=await get("https://fdo.rocketlaunch.live/json/launches/next/5",20000);
     const d=await r.json();launches=(d.result||[]).slice(0,5);
     if(!launches.length)throw 0;
     box.innerHTML=launches.map(l=>{const pad=(l.pad&&l.pad.location)||{};return"<div class='ev'><b style='color:var(--cyan)'>"+((l.vehicle&&l.vehicle.name)||"Vehicle")+"</b> · "+String(l.name||"").slice(0,60)+"<br><small>"+(pad.name||"")+(pad.country?", "+pad.country:"")+" · T-"+cdStr(l.t0)+(l.weather_summary?" · "+String(l.weather_summary).replace(/\s+/g," ").slice(0,64):"")+"<br><a href='https://rocketlaunch.live/launch/"+l.slug+"' target='_blank' rel='noopener'>Details + stream →</a></small></div>";}).join("");
-    pill("stLaunch","ONLINE","ok");stamp("freshLaunch");
+    stamp("freshLaunch");
     const nl=launches[0],pl=$("pulseLaunch");
     if(pl)pl.innerHTML=nl?("NEXT <b style='color:#fff'>"+String((nl.vehicle&&nl.vehicle.name)||"")+"</b> · "+String(nl.name||"").slice(0,34)+" · T-"+cdStr(nl.t0)):"";
-  }catch(e){launches=[];pill("stLaunch","UNAVAILABLE","bad");box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>Launch feed unreachable.<br><br><button onclick='loadLaunches()'>RETRY</button></div>";}
+  }catch(e){launches=[];box.innerHTML="<div class='stateBox'><div class='big'>DATA SOURCE UNAVAILABLE</div>Launch feed unreachable.<br><br><button onclick='loadLaunches()'>RETRY</button></div>";}
 }
 
-/* ---------- NIGHT SHADING (computed live) + ISS TRACKER (open-notify, real) ---------- */
-let nightLayer=null,nightOn=false,issMarker=null;
+/* ---------- NIGHT SHADING (computed live, always on) + ISS TRACKER (wheretheiss.at, real) ---------- */
+let nightLayer=null,nightOn=true,issMarker=null,issFixes=[],issTrackLayer=null,issTimer=null;
 function drawNight(){
   if(nightLayer&&map){map.removeLayer(nightLayer);nightLayer=null;}
   if(!nightOn||!map||typeof L==="undefined")return;
@@ -559,26 +561,38 @@ function drawNight(){
   const pl=dec>=0?-90:90;pts.push([pl,180],[pl,-180]);
   nightLayer=L.polygon(pts,{weight:0,fillColor:"#000",fillOpacity:.38,interactive:false}).addTo(map);
 }
-setInterval(()=>{if(nightOn)drawNight();},300000);
-async function trackISS(){
-  if(!showISS||!map||typeof L==="undefined")return;
-  try{
-    const r=await get("http://api.open-notify.org/iss-now.json",15000);
-    const d=await r.json();const p=d.iss_position||{};
-    const la=parseFloat(p.latitude),lo=parseFloat(p.longitude);
-    if(!isFinite(la)||!isFinite(lo))return;
-    issFixes.push({la,lo,t:Date.now()});if(issFixes.length>12)issFixes.shift();
-    if(!issMarker)issMarker=L.marker([la,lo],{icon:L.divIcon({className:"",html:"<div class='issmk'></div>",iconSize:[14,14],iconAnchor:[7,7]}),zIndexOffset:1000}).addTo(map);
-    else issMarker.setLatLng([la,lo]);
-    issMarker.bindTooltip("ISS · live position",{className:"evtip",direction:"top",offset:[0,-8],sticky:true});
-    const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+la.toFixed(1)+"°, "+lo.toFixed(1)+"° · live";
-    issMarker.bindPopup("<b>ISS</b> · live position<br>"+la.toFixed(2)+", "+lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · track from "+issFixes.length+" live fixes (draws fast, extends ±60 min)<br>dashed/solid lines: predicted track ±60 min<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener'>NASA ISS →</a>");
-    drawTrack();
-  }catch(e){}
-  const fs=issFixes,span=fs.length>1?fs[fs.length-1].t-fs[0].t:0;
-  setTimeout(trackISS,span<45000?5000:15000);
+setInterval(()=>{drawNight();},300000);
+function issIconHTML(){return "<div class='issWrap'><div class='issmk'></div><span class='issLbl'>ISS</span></div>";}
+async function fetchISSPos(){
+  const urls=["https://api.wheretheiss.at/v1/satellites/25544","https://api.allorigins.win/raw?url="+encodeURIComponent("https://api.wheretheiss.at/v1/satellites/25544")];
+  for(const u of urls){
+    try{
+      const r=await get(u,15000);const d=await r.json();
+      const la=parseFloat(d.latitude),lo=parseFloat(d.longitude);
+      if(isFinite(la)&&isFinite(lo))return{la,lo};
+    }catch(e){/* try next */}
+  }
+  return null;
 }
-let issFixes=[],issTrackLayer=null;
+async function trackISS(){
+  if(!map||typeof L==="undefined"){issTimer=setTimeout(trackISS,15000);return;}
+  try{
+    const pos=await fetchISSPos();
+    if(pos){
+      issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});if(issFixes.length>24)issFixes.shift();
+      if(!issMarker)issMarker=L.marker([pos.la,pos.lo],{icon:L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}),zIndexOffset:1000,interactive:true}).addTo(map);
+      else{issMarker.setLatLng([pos.la,pos.lo]);issMarker.setIcon(L.divIcon({className:"",html:issIconHTML(),iconSize:[52,16],iconAnchor:[6,8]}));}
+      issMarker.bindTooltip("ISS · "+pos.la.toFixed(2)+"°, "+pos.lo.toFixed(2)+"° · live",{className:"evtip",direction:"top",offset:[0,-10],sticky:true});
+      const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+pos.la.toFixed(1)+"°, "+pos.lo.toFixed(1)+"° · live";
+      issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener'>NASA ISS →</a>");
+      drawTrack();
+    }else{
+      const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
+    }
+  }catch(e){}
+  const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
+  clearTimeout(issTimer);issTimer=setTimeout(trackISS,issFixes.length<3?2500:span<60000?5000:12000);
+}
 const D2R=Math.PI/180,R2D=180/Math.PI;
 function fCentral(a,b,c,d){const s=Math.sin((c-a)/2*D2R)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin((d-b)/2*D2R)**2;return 2*Math.asin(Math.min(1,Math.sqrt(s)));}
 function fBearing(a,b,c,d){const y=Math.sin((d-b)*D2R)*Math.cos(c*D2R);const x=Math.cos(a*D2R)*Math.sin(c*D2R)-Math.sin(a*D2R)*Math.cos(c*D2R)*Math.cos((d-b)*D2R);return(Math.atan2(y,x)*R2D+360)%360;}
@@ -588,9 +602,10 @@ function drawTrack(){
   if(issTrackLayer){map.removeLayer(issTrackLayer);issTrackLayer=null;}
   if(issFixes.length<2)return;
   const F1=issFixes[issFixes.length-1];let F0=null;
-  for(let i=issFixes.length-2;i>=0;i--){if(F1.t-issFixes[i].t>=30000){F0=issFixes[i];break;}}
+  for(let i=issFixes.length-2;i>=0;i--){if(F1.t-issFixes[i].t>=10000){F0=issFixes[i];break;}}
+  if(!F0)F0=issFixes[0];
   if(!F0)return;
-  const dt=(F1.t-F0.t)/1000;if(dt<30||!isFinite(dt))return;
+  const dt=(F1.t-F0.t)/1000;if(dt<2||!isFinite(dt))return;
   const om=fCentral(F0.la,F0.lo,F1.la,F1.lo)/dt;
   if(!isFinite(om)||om<=0||om>0.01)return;
   const brg=fBearing(F0.la,F0.lo,F1.la,F1.lo);
@@ -607,14 +622,14 @@ function drawTrack(){
   segs(fut).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:2,opacity:.85,interactive:false}).addTo(issTrackLayer));
   issTrackLayer.addTo(map);
 }
-/* ISS polling self-schedules inside trackISS (fast until track lock, then 15s) */
+/* ISS polling self-schedules inside trackISS (2.5s burst until track draws, then 5s/12s) */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
 const AIRPORTS=[{icao:"KJFK",n:"New York JFK",lat:40.64,lon:-73.78},{icao:"EGLL",n:"London Heathrow",lat:51.47,lon:-0.45},{icao:"OMDB",n:"Dubai",lat:25.25,lon:55.36},{icao:"VIDP",n:"Delhi",lat:28.57,lon:77.10},{icao:"RJTT",n:"Tokyo Haneda",lat:35.55,lon:139.78},{icao:"YSSY",n:"Sydney",lat:-33.95,lon:151.18},{icao:"FACT",n:"Cape Town",lat:-33.97,lon:18.60},{icao:"SBGR",n:"São Paulo",lat:-23.44,lon:-46.47},{icao:"HECA",n:"Cairo",lat:30.12,lon:31.41},{icao:"WSSS",n:"Singapore",lat:1.36,lon:103.99}];
 let airLayer=null,aqiLayer=null;
 async function loadAir(){
   if(!map||typeof L==="undefined")return;
-  if(!airLayer)airLayer=L.layerGroup().addTo(map);
+  if(!airLayer){airLayer=L.layerGroup();}if(!map.hasLayer(airLayer))airLayer.addTo(map);
   try{
     const r=await get("https://api.open-meteo.com/v1/forecast?latitude="+AIRPORTS.map(a=>a.lat).join(",")+"&longitude="+AIRPORTS.map(a=>a.lon).join(",")+"&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&timezone=auto",25000);
     const d=await r.json();const arr=Array.isArray(d)?d:[d];
@@ -634,7 +649,7 @@ const AQIB=[[50,"#22c55e","Good"],[100,"#eab308","Moderate"],[150,"#fb923c","USG
 function aqiMeta(v){if(v==null||!isFinite(v))return{c:"#6b7280",l:"unknown"};for(const b of AQIB)if(v<=b[0])return{c:b[1],l:b[2]};return{c:"#7f1d1d",l:"Hazardous"};}
 async function loadAQI(){
   if(!map||typeof L==="undefined")return;
-  if(!aqiLayer)aqiLayer=L.layerGroup().addTo(map);
+  if(!aqiLayer){aqiLayer=L.layerGroup();}if(!map.hasLayer(aqiLayer))aqiLayer.addTo(map);
   try{
     const r=await get("https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+AQICITIES.map(c=>c.lat).join(",")+"&longitude="+AQICITIES.map(c=>c.lon).join(",")+"&current=us_aqi,pm2_5&timezone=auto",25000);
     const d=await r.json();const arr=Array.isArray(d)?d:[d];
@@ -645,9 +660,8 @@ async function loadAQI(){
       mk.bindTooltip("AQI "+(c.us_aqi==null?"—":Math.round(c.us_aqi))+" · "+m.l,{className:"evtip",direction:"top",offset:[0,-6],sticky:true});
       mk.bindPopup("<b>"+ct.n+"</b> · air quality<br>US AQI <b style='color:"+m.c+"'>"+(c.us_aqi==null?"—":Math.round(c.us_aqi))+" · "+m.l+"</b><br>PM2.5 "+(c.pm2_5==null?"—":c.pm2_5)+" µg/m³<br>Source: Open-Meteo live");
       aqiLayer.addLayer(mk);});
-  }catch(e){const b=$("lyAQI");if(b)b.checked=false;}
+  }catch(e){return;}
 }
-$("lyAQI").addEventListener("change",e=>{if(e.target.checked)loadAQI();else if(aqiLayer&&map)map.removeLayer(aqiLayer);});
 
 /* ---------- ABOUT + SHORTCUTS ---------- */
 $("btnAbout").onclick=()=>{$("aboutModal").style.display="flex";};
@@ -655,8 +669,10 @@ $("aboutClose").onclick=()=>{$("aboutModal").style.display="none";};
 $("aboutModal").addEventListener("click",e=>{if(e.target===$("aboutModal"))$("aboutModal").style.display="none";});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("aboutModal").style.display="none";});
 
-/* ---------- BOOT ---------- */
-initMap();loadQuakes();loadMinor();loadEonet();renderNews(false);loadWeather();loadMarkets();loadWiki();loadPulse();loadLaunches();trackISS();
+/* ---------- BOOT: map-critical feeds first, secondary panels deferred ---------- */
+initMap();loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();renderNews(false);loadWeather();trackISS();
+setTimeout(()=>{loadMarkets();loadWiki();loadPulse();loadLaunches();},1500);
+setInterval(()=>{loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();},300000);
 setInterval(()=>{if(newsCache[newsCat]&&Date.now()-newsCache[newsCat].at>6e5)$("freshNews").textContent+=" · STALE";},3e4);
 </script>
 </body>
