@@ -60,7 +60,9 @@ opens and says so honestly.
 
 ```text
 world-signal/  (repo: argus-world-monitor)
-├── index.html          # the entire app (HTML + CSS + JS)
+├── index.html          # shell (HTML + CSP, loads styles.css / app.js)
+├── styles.css          # app styles (CSP-strict: no inline <style>)
+├── app.js              # app logic (CSP-strict: no inline <script>/onclick)
 ├── docs/
 │   ├── screenshot.png  # dashboard screenshot (README)
 │   └── og-preview.png  # 1280×640 social preview (upload in repo Settings)
