@@ -308,15 +308,25 @@ function drawNight(){
 setInterval(()=>{drawNight();},300000);
 function issIconHTML(){return "<div class='issWrap'><div class='issmk'></div><span class='issLbl'>ISS</span></div>";}
 async function fetchISSPos(){
-  const urls=["https://api.wheretheiss.at/v1/satellites/25544","https://api.allorigins.win/raw?url="+encodeURIComponent("https://api.wheretheiss.at/v1/satellites/25544")];
-  const fetchOne=u=>(async()=>{try{
-    const r=await get(u,8000);const d=await r.json();
+  const direct="https://api.wheretheiss.at/v1/satellites/25544";
+  const proxy="https://api.allorigins.win/raw?url="+encodeURIComponent("https://api.wheretheiss.at/v1/satellites/25544");
+  const fetchOne=async u=>{try{
+    const r=await get(u,4000);const d=await r.json();
     const la=parseFloat(d.latitude),lo=parseFloat(d.longitude);
     if(isFinite(la)&&isFinite(lo))return{la,lo};
-  }catch(e){}return null;})();
+  }catch(e){}return null;};
+  // Staggered fallback: direct first, proxy only if direct is slow (>1.5s).
+  // First winner resolves; the loser result is ignored (its own 4s timeout aborts it).
   return await new Promise(resolve=>{
-    let pending=urls.length;
-    urls.forEach(u=>{fetchOne(u).then(pos=>{if(pos)resolve(pos);else if(--pending<=0)resolve(null);});});
+    let settled=false;
+    const win=pos=>{if(!settled&&pos){settled=true;resolve(pos);}};
+    const fail=()=>{if(!settled){settled=true;resolve(null);}};
+    let directDone=false,proxyDone=false,proxyFired=false;
+    const maybeFail=()=>{if(directDone&&(!proxyFired||proxyDone))fail();};
+    fetchOne(direct).then(pos=>{directDone=true;if(pos)win(pos);else if(proxyFired){/* wait proxy */}else{/* direct failed fast: fire proxy now */fireProxy();}maybeFail();});
+    const fireProxy=()=>{if(proxyFired||settled)return;proxyFired=true;fetchOne(proxy).then(pos=>{proxyDone=true;if(pos)win(pos);else maybeFail();});};
+    setTimeout(()=>{if(!settled&&!directDone)fireProxy();},1500);
+    setTimeout(()=>{if(!settled)fail();},9000);
   });
 }
 function placeISSMarker(la,lo,live){
@@ -332,16 +342,19 @@ async function trackISS(){
     const pos=await fetchISSPos();
     if(pos){
       issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});issPrune();if(issFixes.length>24)issFixes.shift();
-      try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6)}));}catch(e){}
+      issVector();
+      try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6),vec:issVecS?{om:issVecS.om,brg:issVecS.brg}:null}));}catch(e){}
       placeISSMarker(pos.la,pos.lo,true);
       issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
-      issVector();drawTrack();tickISS();
+      drawTrack();tickISS();
     }else{
       const pi=$("pulseIss");if(pi&&!issFixes.length)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
     }
   }catch(e){}
   const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
-  clearTimeout(issTimer);issTimer=setTimeout(trackISS,issFixes.length<3?2500:span<60000?5000:12000);
+  clearTimeout(issTimer);
+  // Fast burst (~1.2s) until the first track line draws, then existing 2.5s/5s/12s backoff.
+  issTimer=setTimeout(trackISS,!issTrackLayer?1200:issFixes.length<3?2500:span<60000?5000:12000);
 }
 /* Motion vector in an Earth-rotation-corrected (inertial-anchored) frame.
    Fixes are earth-fixed lat/lon, so fitting a raw great-circle to them and
@@ -358,25 +371,34 @@ function issRawVector(){
   issPrune();
   if(issFixes.length<2)return null;
   const F1=issFixes[issFixes.length-1];
-  let F0=null;
-  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=45&&dt<=240){F0=issFixes[i];break;}}
-  if(!F0){for(let i=0;i<issFixes.length-1;i++){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=8){F0=issFixes[i];break;}}}
-  if(!F0)return null;
-  const dt=(F1.t-F0.t)/1000;if(!(dt>=8)||!isFinite(dt))return null;
-  const lo0i=F0.lo-OM_EARTH_DPS*dt; // F0 longitude in frame anchored at F1
-  const om=fCentral(F0.la,lo0i,F1.la,F1.lo)/dt;
-  if(!isFinite(om)||om<0.0004||om>0.0025)return null; // ISS ~= 0.0011 rad/s
-  const brg=fBearing(F0.la,lo0i,F1.la,F1.lo);
-  if(!isFinite(brg))return null;
-  return{F1,om,brg};
+  const fit=(F0,prov)=>{
+    const dt=(F1.t-F0.t)/1000;if(!(dt>0)||!isFinite(dt))return null;
+    const lo0i=F0.lo-OM_EARTH_DPS*dt; // F0 longitude in frame anchored at F1
+    const om=fCentral(F0.la,lo0i,F1.la,F1.lo)/dt;
+    const bounds=prov?[0.0002,0.004]:[0.0004,0.0025];
+    if(!isFinite(om)||om<bounds[0]||om>bounds[1])return null; // ISS ~= 0.0011 rad/s
+    const brg=fBearing(F0.la,lo0i,F1.la,F1.lo);
+    if(!isFinite(brg))return null;
+    return{F1,om,brg,prov:!!prov};
+  };
+  // 1) Accurate baseline 45-240s when available (not ~10s: fix noise amplifies over ±60min).
+  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=45&&dt<=240){const v=fit(issFixes[i],false);if(v)return v;break;}}
+  // 2) Refined baseline >=8s.
+  for(let i=0;i<issFixes.length-1;i++){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=8){const v=fit(issFixes[i],false);if(v)return v;break;}}
+  // 3) Provisional fast track from >=2s baseline so the line draws after ~2 polls
+  // instead of ~5. Replaced by (1)/(2) once a longer baseline exists.
+  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=2){const v=fit(issFixes[i],true);if(v)return v;break;}}
+  return null;
 }
 function issVector(){
   const raw=issRawVector();if(!raw)return issVecS;
   if(!issVecS||Date.now()-issVecS.at>5*60*1000||!isFinite(issVecS.om)||!isFinite(issVecS.brg)){issVecS={F1:raw.F1,om:raw.om,brg:raw.brg,at:Date.now()};return issVecS;}
-  const om=issVecS.om*0.6+raw.om*0.4;
+  // Provisional fixes are noisy: blend lightly (0.2) until a refined baseline arrives.
+  const w=raw.prov?0.2:0.4;
+  const om=issVecS.om*(1-w)+raw.om*w;
   const a0=issVecS.brg*Math.PI/180,a1=raw.brg*Math.PI/180;
   let d=a1-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
-  const ab=a0+d*0.4;
+  const ab=a0+d*w;
   issVecS={F1:raw.F1,om,brg:((ab*180/Math.PI)+360)%360,at:Date.now()};
   return issVecS;
 }
@@ -394,9 +416,15 @@ function restoreISS(){
     const c=JSON.parse(localStorage.getItem("argus-iss")||"null");
     if(!c||!Array.isArray(c.fixes)||Date.now()-c.at>10*60*1000)return;
     const f=c.fixes.filter(x=>x&&isFinite(x.la)&&isFinite(x.lo)&&isFinite(x.t));
-    if(f.length<2)return;
+    if(!f.length)return;
     issFixes=f;issVecS=null;
-    issVector();drawTrack();tickISS();
+    // Warm start: restore last smoothed vector so the ±60min line draws on first
+    // paint even before fresh fixes arrive; it self-corrects on the next fix.
+    if(c.vec&&isFinite(c.vec.om)&&isFinite(c.vec.brg)&&c.vec.om>0.0002&&c.vec.om<0.004)
+      issVecS={F1:f[f.length-1],om:c.vec.om,brg:c.vec.brg,at:c.at};
+    if(f.length>=2)issVector();
+    else if(!issVecS)return;
+    drawTrack();tickISS();
   }catch(e){}
 }
 function clearISSTrack(){if(issTrackLayer&&map){try{map.removeLayer(issTrackLayer);}catch(e){}issTrackLayer=null;}}
@@ -435,7 +463,7 @@ function drawTrack(){
 }
 setInterval(tickISS,2000);
 setInterval(()=>{if(issVector())drawTrack();},30000);
-/* ISS polling self-schedules inside trackISS (2.5s burst until track draws, then 5s/12s); tickISS glides the dot every 2s between fixes */
+/* ISS polling self-schedules inside trackISS (1.2s burst until track draws, then 2.5s/5s/12s); tickISS glides the dot every 2s between fixes */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
 const AIRPORTS=[{icao:"KJFK",n:"New York JFK",lat:40.64,lon:-73.78},{icao:"EGLL",n:"London Heathrow",lat:51.47,lon:-0.45},{icao:"OMDB",n:"Dubai",lat:25.25,lon:55.36},{icao:"VIDP",n:"Delhi",lat:28.57,lon:77.10},{icao:"RJTT",n:"Tokyo Haneda",lat:35.55,lon:139.78},{icao:"YSSY",n:"Sydney",lat:-33.95,lon:151.18},{icao:"FACT",n:"Cape Town",lat:-33.97,lon:18.60},{icao:"SBGR",n:"São Paulo",lat:-23.44,lon:-46.47},{icao:"HECA",n:"Cairo",lat:30.12,lon:31.41},{icao:"WSSS",n:"Singapore",lat:1.36,lon:103.99}];
@@ -482,8 +510,11 @@ $("aboutClose").onclick=()=>{$("aboutModal").style.display="none";};
 $("aboutModal").addEventListener("click",e=>{if(e.target===$("aboutModal"))$("aboutModal").style.display="none";});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("aboutModal").style.display="none";});
 
-/* ---------- BOOT: map-critical feeds first, secondary panels deferred ---------- */
-initMap();loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();renderNews(false);loadWeather();restoreISS();trackISS();
+/* ---------- BOOT: ISS + map-critical feeds first, slow/heavy feeds deferred ---------- */
+initMap();restoreISS();trackISS();
+{const pi=$("pulseIss");if(pi&&!issFixes.length&&!issTrackLayer)pi.innerHTML="<b style='color:#fff'>ISS</b> acquiring signal…";}
+loadQuakes();loadAir();loadAQI();renderNews(false);loadWeather();
+setTimeout(()=>{loadMinor();loadEonet();},500); // slow 25-30s feeds: don't head-of-line-block ISS
 setTimeout(()=>{loadMarkets();loadWiki();loadPulse();loadLaunches();},1500);
 setInterval(()=>{loadQuakes();loadMinor();loadEonet();loadAir();loadAQI();},300000);
 setInterval(()=>{if(newsCache[newsCat]&&Date.now()-newsCache[newsCat].at>6e5)$("freshNews").textContent+=" · STALE";},3e4);
