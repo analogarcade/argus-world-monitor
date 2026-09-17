@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="ARGUS — free live world event monitor: earthquake map, ISS tracker, storms, volcanoes, weather, news, launches and markets. Single file, no keys, no signup.">
 <meta name="theme-color" content="#090b0c">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self' https://earthquake.usgs.gov https://www.seismicportal.eu https://eonet.gsfc.nasa.gov https://api.open-meteo.com https://air-quality-api.open-meteo.com https://fdo.rocketlaunch.live https://api.wheretheiss.at https://api.allorigins.win https://api.rss2json.com https://en.wikipedia.org https://date.nager.at https://api.frankfurter.dev https://api.coingecko.com https://stooq.com https://server.arcgisonline.com; img-src 'self' data: https://server.arcgisonline.com https://unpkg.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://unpkg.com; connect-src 'self' https://earthquake.usgs.gov https://www.seismicportal.eu https://eonet.gsfc.nasa.gov https://api.open-meteo.com https://air-quality-api.open-meteo.com https://fdo.rocketlaunch.live https://api.wheretheiss.at https://api.allorigins.win https://api.rss2json.com https://en.wikipedia.org https://date.nager.at https://api.frankfurter.dev https://api.coingecko.com https://stooq.com https://server.arcgisonline.com https://celestrak.org; img-src 'self' data: https://server.arcgisonline.com https://unpkg.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23090b0c'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%2322c55e' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%2322c55e'/%3E%3C/svg%3E">
 <title>ARGUS — Open-Source Event Monitor</title>
@@ -29,7 +29,7 @@
     <div id="map"></div>
     <div id="mapFallback"><div class="stateBox"><div class="big">MAP UNAVAILABLE</div>Map library or tiles could not load (offline or CDN blocked). All other panels keep working.<br><br><button data-retry="reload">RETRY</button></div></div>
     </div>
-    <div class="phead"><span class="fresh" id="freshEv">Updated —</span><span class="fresh" id="coords" title="Cursor coordinates">—</span><span class="legend"><span><i style="background:#22c55e"></i>Q&lt;5.5</span><span><i style="background:#f59e0b"></i>Q5.5–6</span><span><i style="background:#ef4444"></i>Q6+</span><span><i style="background:transparent;border:1px solid #38bdf8"></i>M2.5–4.5</span><span><i class="sq" style="background:#38bdf8"></i>Storm</span><span><i class="sq" style="background:#ef4444"></i>Volcano</span><span><i class="sq" style="background:#60a5fa"></i>Flood</span><span><i style="background:#fff;border:1px solid #38bdf8"></i>ISS</span><span><i style="background:transparent;border:1px dashed #8b9397"></i>ISS PATH</span><span><i style="background:#0e1112;border:1px solid #38bdf8"></i>AIR</span><span><i style="background:#0e1112;border:1px solid #eab308"></i>AQI</span></span></div>
+    <div class="phead"><span class="fresh" id="freshEv">Updated —</span><span class="fresh" id="coords" title="Cursor coordinates">—</span><span class="legend"><span><i style="background:#22c55e"></i>Q&lt;5.5</span><span><i style="background:#f59e0b"></i>Q5.5–6</span><span><i style="background:#ef4444"></i>Q6+</span><span><i style="background:transparent;border:1px solid #38bdf8"></i>M2.5–4.5</span><span><i class="sq" style="background:#38bdf8"></i>Storm</span><span><i class="sq" style="background:#ef4444"></i>Volcano</span><span><i class="sq" style="background:#60a5fa"></i>Flood</span><span><i style="background:#fff;border:1px solid #38bdf8"></i>ISS</span><span><i style="background:transparent;border:1px dashed #8b9397"></i>ISS TRACK ±90MIN</span><span><i style="background:#0e1112;border:1px solid #38bdf8"></i>AIR</span><span><i style="background:#0e1112;border:1px solid #eab308"></i>AQI</span></span></div>
   </section>
 
   <div id="bottomgrid">
@@ -74,14 +74,14 @@
     <div class="scroll" id="wikiList" style="max-height:300px"><div class="stateBox"><div class="big">LOADING...</div></div></div>
   </section>
 </main>
-<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BBC RSS · RocketLaunch.Live · wheretheiss.at · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
+<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BBC RSS · RocketLaunch.Live · CelesTrak TLE + wheretheiss.at · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
 
 <div id="aboutModal"><div id="aboutCard">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2>ARG<span>US</span></h2><button id="aboutClose">CLOSE ×</button></div>
   <p style="margin-top:6px">Live data from free public sources — no accounts, no keys, no backend, nothing invented. Unreachable sources say so.</p>
   <h4>HOW TO USE</h4>
   <ul>
-    <li><b style="color:var(--txt)">Map</b> — all layers always on: quakes, micro-quakes, storms, airports, air quality, night shade, ISS + track. Fixed single-world view — click any marker for detail. Feeds auto-refresh.</li>
+    <li><b style="color:var(--txt)">Map</b> — all layers always on: quakes, micro-quakes, storms, airports, air quality, night shade, ISS + ±90min orbit track. Fixed single-world view — click any marker for detail. Feeds auto-refresh.</li>
     <li><b style="color:var(--txt)">News dropdown</b> — 9 world regions, live.</li>
     <li><b style="color:var(--txt)">Status bar</b> — live state of every source; anything unreachable says so.</li>
   </ul>
@@ -89,7 +89,7 @@
   <ul>
     <li>Map — <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> dark canvas + <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></li>
     <li>Quakes — <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> · Micro — <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a> · Storms, volcanoes — <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a></li>
-    <li>Launches — <a href="https://rocketlaunch.live/" target="_blank" rel="noopener">RocketLaunch.Live</a> · ISS — <a href="https://wheretheiss.at/" target="_blank" rel="noopener">wheretheiss.at</a></li>
+    <li>Launches — <a href="https://rocketlaunch.live/" target="_blank" rel="noopener">RocketLaunch.Live</a> · ISS orbit — <a href="https://celestrak.org/" target="_blank" rel="noopener">CelesTrak TLE</a> + SGP4, live anchor <a href="https://wheretheiss.at/" target="_blank" rel="noopener">wheretheiss.at</a></li>
     <li>Weather, airports + air quality — <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></li>
     <li>Event log — <a href="https://en.wikipedia.org/wiki/Portal:Current_events" target="_blank" rel="noopener">Wikipedia Current Events</a> · News — BBC RSS · Markets — Stooq, CoinGecko, Frankfurter</li>
   </ul>
@@ -97,6 +97,7 @@
   <ul><li><b style="color:var(--txt)">Esc</b> close dialogs</li></ul>
 </div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="./app.js" defer></script>
 </body>
 </html>

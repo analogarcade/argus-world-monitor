@@ -26,9 +26,9 @@ opens and says so honestly.
 ## Features
 
 - **Fullscreen live world map** (Leaflet + Esri dark canvas, fixed single-world
-  view, no zoom/pan) with all layers always on: earthquakes M4.5+, micro-quakes
-  M2.5–4.5, storms, volcanoes, floods, airports, air quality, night shade,
-  **ISS with labeled marker + ±60 min predicted ground track**
+   view, no zoom/pan) with all layers always on: earthquakes M4.5+, micro-quakes
+   M2.5–4.5, storms, volcanoes, floods, airports, air quality, night shade,
+   **ISS with labeled marker + ±90 min full-orbit track (SGP4)**
 - **Fused alerts** derived only from live feeds (never fabricated)
 - **Global news** across 9 BBC regions via RSS (World, Africa, Asia, Europe,
   Middle East, Americas, Business, Tech, Science)
@@ -49,18 +49,28 @@ opens and says so honestly.
 | Storms, volcanoes, floods | NASA EONET |
 | City/airport weather, air quality | Open-Meteo |
 | Launches | RocketLaunch.Live |
-| ISS position + track | wheretheiss.at |
+| ISS orbit + track (±90 min) | CelesTrak TLE + SGP4 (satellite.js), wheretheiss.at live anchor |
 | News | BBC RSS (rss2json fallback) |
 | Event log | Wikipedia API |
 | Holidays | Nager.Date |
 | FX rates | Frankfurter |
 | Crypto | CoinGecko · Indices: Stooq |
 
+## ISS tracking
+
+- Orbit model: CelesTrak TLE for NORAD 25544 propagated locally with SGP4
+  (satellite.js 4.1.4 CDN), ±90 min full-orbit track at 1 min steps.
+- TLE cached in `localStorage` (12h TTL, 7-day max age) plus a bundled fallback
+  TLE, so the track draws instantly even offline; refreshed every 6h.
+- `wheretheiss.at` remains as a live calibration anchor (polled every ~15s once
+  the orbit model is up) with the legacy 2-fix vector as offline fallback.
+- Track style: past grey dashed, next 60 min bright, 60–90 min faint forecast.
+
 ## Project structure
 
 ```text
 world-signal/  (repo: argus-world-monitor)
-├── index.html          # shell (HTML + CSP, loads styles.css / app.js)
+├── index.html          # shell (HTML + CSP, loads satellite.js / styles.css / app.js)
 ├── styles.css          # app styles (CSP-strict: no inline <style>)
 ├── app.js              # app logic (CSP-strict: no inline <script>/onclick)
 ├── docs/

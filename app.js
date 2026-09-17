@@ -293,6 +293,77 @@ async function loadLaunches(){
 
 /* ---------- NIGHT SHADING (computed live, always on) + ISS TRACKER (wheretheiss.at, real) ---------- */
 let nightLayer=null,nightOn=true,issMarker=null,issFixes=[],issTrackLayer=null,issTimer=null;
+/* ---------- ISS ORBIT MODEL (TLE + SGP4, long-range ±90min) ---------- */
+// Local propagation via satellite.js: instant track on load (cached TLE),
+// accurate full-orbit forecast, no per-tick network. wheretheiss.at stays
+// as live anchor + fallback when TLE/CDN unavailable.
+const ISS_RANGE_MIN=90,ISS_STEP_MIN=1,ISS_TLE_TTL_MS=12*3600*1000,ISS_TLE_MAX_AGE_MS=7*864e5;
+const ISS_TLE_URLS=[
+  "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE",
+  "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?CATNR=25544&FORMAT=TLE"
+];
+const ISS_TLE_JSON="https://celestrak.org/CCSDS/bulk.php?GROUP=stations&FORMAT=JSON";
+// Bundled fallback (real ISS TLE, Sep 2026) — replaced by fresher cache/network when available.
+const ISS_TLE_FALLBACK={l1:"1 25544U 98067A   26259.85263506  .00007068  00000+0  13566-3 0  9993",l2:"2 25544  51.6307 206.4210 0004838 147.2470 212.8820 15.49143506585961",at:0};
+let issSatrec=null,issTLEAt=0,issTLESource="none";
+function issHaveSGP4(){return typeof satellite!=="undefined"&&satellite&&typeof satellite.twoline2satrec==="function";}
+function issSetTLE(l1,l2,at,src){
+  if(!l1||!l2||l1[0]!=="1"||l2[0]!=="2")return false;
+  if(!issHaveSGP4()){issTLEAt=at||Date.now();issTLESource=src||"cached";return false;}
+  try{
+    const rec=satellite.twoline2satrec(l1.trim(),l2.trim());
+    if(!rec)return false;
+    issSatrec=rec;issTLEAt=at||Date.now();issTLESource=src||"network";
+    try{localStorage.setItem("argus-tle",JSON.stringify({l1:l1.trim(),l2:l2.trim(),at:issTLEAt}));}catch(e){}
+    return true;
+  }catch(e){return false;}
+}
+function issTLEAgeMs(){return issTLEAt?Date.now()-issTLEAt:Infinity;}
+function restoreTLE(){
+  if(!issHaveSGP4())return false;
+  try{
+    const c=JSON.parse(localStorage.getItem("argus-tle")||"null");
+    if(c&&c.l1&&c.l2&&isFinite(c.at)&&Date.now()-c.at<ISS_TLE_MAX_AGE_MS){
+      if(issSetTLE(c.l1,c.l2,c.at,"cache"))return true;
+    }
+  }catch(e){}
+  issSetTLE(ISS_TLE_FALLBACK.l1,ISS_TLE_FALLBACK.l2,Date.now(),"bundled");
+  return !!issSatrec;
+}
+function issPropagate(at){
+  if(!issSatrec||!issHaveSGP4())return null;
+  try{
+    const d=at instanceof Date?at:new Date(at);
+    const pv=satellite.propagate(issSatrec,d);
+    if(!pv||!pv.position||!isFinite(pv.position.x))return null;
+    const gmst=satellite.gstime(d);
+    const g=satellite.eciToGeodetic(pv.position,gmst);
+    const la=satellite.degreesLat(g.latitude),lo=satellite.degreesLong(g.longitude);
+    if(!isFinite(la)||!isFinite(lo)||Math.abs(la)>90)return null;
+    return{la,lo,alt:g.height};
+  }catch(e){return null;}
+}
+async function loadTLE(){
+  if(!issHaveSGP4())return;
+  if(issTLEAt&&Date.now()-issTLEAt<ISS_TLE_TTL_MS&&issTLESource!=="bundled")return;
+  for(const u of ISS_TLE_URLS){
+    try{
+      const r=await get(u,12000);const t=(await r.text()).trim();
+      const lines=t.split("\n").map(s=>s.trim()).filter(Boolean);
+      const l1=lines.find(s=>s[0]==="1"&&s.includes("25544")),l2=lines.find(s=>s[0]==="2"&&s.includes("25544"));
+      if(l1&&l2&&issSetTLE(l1,l2,Date.now(),"celestrak")){drawTrack();tickISS();return;}
+    }catch(e){/* try next */}
+  }
+  try{
+    const r=await get(ISS_TLE_JSON,12000);const d=await r.json();
+    const arr=Array.isArray(d)?d:(d.MEMBER||d.member||[]);
+    const rec=arr.find(o=>String(o.NORAD_CAT_ID||o.noradCatId||o.id||"")=="25544"&&(o.TLE_LINE1||o.tle1));
+    if(rec){
+      const l1=rec.TLE_LINE1||rec.tle1,l2=rec.TLE_LINE2||rec.tle2;
+      if(l1&&l2&&issSetTLE(l1,l2,Date.now(),"celestrak-json")){drawTrack();tickISS();return;}
+    }
+  }catch(e){}
+}
 function drawNight(){
   if(nightLayer&&map){map.removeLayer(nightLayer);nightLayer=null;}
   if(!nightOn||!map||typeof L==="undefined")return;
@@ -367,7 +438,7 @@ async function trackISS(){
         issVector();
         try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6),vec:issVecS?{om:issVecS.om,brg:issVecS.brg}:null}));}catch(e){}
         placeISSMarker(pos.la,pos.lo,true);
-        issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date(pos.t))+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
+        issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date(pos.t))+" UTC<br>~28,000 km/h · ~420 km up · ±90 min orbit track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
         drawTrack();tickISS();
       }else{
         // Outlier rejected: don't poison vector/track, keep polling fast to recover.
@@ -380,8 +451,10 @@ async function trackISS(){
   }catch(e){}
   const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
   clearTimeout(issTimer);
-  // Poll fast until a valid track exists, then back off.
-  issTimer=setTimeout(trackISS,!issTrackLayer?3000:issFixes.length<3?4000:span<90000?6000:12000);
+  // Poll fast until a valid track exists, then back off. SGP4 already gives a
+  // full-orbit track, so live fixes are only calibration → poll slowly.
+  if(issSatrec)issTimer=setTimeout(trackISS,!issTrackLayer?3000:15000);
+  else issTimer=setTimeout(trackISS,!issTrackLayer?3000:issFixes.length<3?4000:span<90000?6000:12000);
 }
 /* Motion vector in an Earth-rotation-corrected (inertial-anchored) frame.
    Fixes are earth-fixed lat/lon, so fitting a raw great-circle to them and
@@ -464,8 +537,39 @@ function restoreISS(){
   }catch(e){}
 }
 function clearISSTrack(){if(issTrackLayer&&map){try{map.removeLayer(issTrackLayer);}catch(e){}issTrackLayer=null;}}
+function segsTrack(a,gapDeg){
+  const gap=gapDeg||14,o=[[]];
+  for(const p of a){
+    const l=o[o.length-1];
+    if(l.length&&Math.abs(p[1]-l[l.length-1][1])>180)o.push([p]);
+    else l.push(p);
+  }
+  const out=[];
+  for(const s of o){
+    if(!s.length)continue;
+    let run=[s[0]];
+    for(let i=1;i<s.length;i++){
+      const gp=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]);
+      if(gp>gap){if(run.length>1)out.push(run);run=[s[i]];}
+      else run.push(s[i]);
+    }
+    if(run.length>1)out.push(run);
+  }
+  return out.filter(s=>s.length>1);
+}
 function tickISS(){
   if(!map||typeof L==="undefined")return;
+  // Preferred: SGP4 live position (smooth, no network, works offline from cache).
+  const sgp=issPropagate(Date.now());
+  if(sgp&&issSatrec){
+    const ageH=issTLEAgeMs()/36e5;
+    const live=ageH<72;
+    placeISSMarker(sgp.la,sgp.lo,live);
+    const pi=$("pulseIss");
+    if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+sgp.la.toFixed(1)+"°, "+sgp.lo.toFixed(1)+"° · live-TLE"+(issTLESource&&issTLESource!=="none"?" ("+esc(issTLESource)+")":"");
+    issMarker.bindPopup("<b>ISS</b> · live orbit model<br>"+sgp.la.toFixed(2)+", "+sgp.lo.toFixed(2)+(isFinite(sgp.alt)?" · "+Math.round(sgp.alt)+" km up":"")+"<br>~28,000 km/h · ±90 min orbit track<br>Source: CelesTrak TLE ("+esc(issTLESource||"cached")+(isFinite(ageH)?", "+(ageH<1?(ageH*60).toFixed(0)+"m":ageH.toFixed(1)+"h")+" old":"")+")<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
+    return;
+  }
   const v=issVector();if(!v||!v.F1)return;
   const now=Date.now(),age=now-v.F1.t;
   if(age>3*60*1000){clearISSTrack();const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> stale — feed unreachable";return;}
@@ -478,6 +582,29 @@ function fBearing(a,b,c,d){const y=Math.sin((d-b)*D2R)*Math.cos(c*D2R);const x=M
 function fDest(a,b,brg,dist){const la=a*D2R,lo=b*D2R,t=brg*D2R;const la2=Math.asin(Math.sin(la)*Math.cos(dist)+Math.cos(la)*Math.sin(dist)*Math.cos(t));const lo2=lo+Math.atan2(Math.sin(t)*Math.sin(dist)*Math.cos(la),Math.cos(dist)-Math.sin(la)*Math.sin(la2));return[la2*R2D,((lo2*R2D+540)%360)-180];}
 function drawTrack(){
   if(!map||typeof L==="undefined")return;
+  // Preferred: SGP4 full-orbit track (±90min, 1min steps) — accurate for days.
+  const now=Date.now();
+  const sgp=issPropagate(now);
+  if(sgp&&issSatrec){
+    clearISSTrack();
+    const past=[],near=[],far=[];
+    for(let m=-ISS_RANGE_MIN;m<=ISS_RANGE_MIN;m+=ISS_STEP_MIN){
+      const p=issPropagate(now+m*60000);
+      if(!p||!isFinite(p.la)||!isFinite(p.lo)||Math.abs(p.la)>90)continue;
+      let ln=((p.lo+540)%360)-180;
+      const pt=[p.la,ln];
+      if(m<=0)past.push(pt);
+      else if(m<=60)near.push(pt);
+      else far.push(pt);
+    }
+    issTrackLayer=L.layerGroup();
+    segsTrack(past).forEach(s=>L.polyline(s,{color:"#5b6367",weight:1.5,dashArray:"4 4",interactive:false}).addTo(issTrackLayer));
+    segsTrack(near).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:2,opacity:.9,interactive:false}).addTo(issTrackLayer));
+    segsTrack(far).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:1.5,opacity:.4,dashArray:"2 5",interactive:false}).addTo(issTrackLayer));
+    if(issTrackLayer.getLayers().length)issTrackLayer.addTo(map);
+    return;
+  }
+  // Fallback: legacy 2-fix vector (±60min) when TLE/CDN unavailable.
   const v=issVector();if(!v||!v.F1)return;
   if(Date.now()-v.F1.t>3*60*1000){clearISSTrack();return;}
   clearISSTrack();
@@ -492,33 +619,15 @@ function drawTrack(){
   }
   // Split on antimeridian jumps AND on gaps left by rejected points, so a bad
   // vector can't draw one long chord across the map.
-  const segs=a=>{const o=[[]];
-    for(const p of a){
-      const l=o[o.length-1];
-      if(l.length&&Math.abs(p[1]-l[l.length-1][1])>180)o.push([p]);
-      else l.push(p);
-    }
-    // Mark gaps: positions are dense (2min steps); a missing step means `past`/`fut`
-    // arrays built above simply lack that entry, so also break when consecutive
-    // points are implausibly far apart along-track (>~12° in 2min vs ~8° nominal).
-    const out=[];
-    for(const s of o){
-      let run=[s[0]];
-      for(let i=1;i<s.length;i++){
-        const gap=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]);
-        if(gap>14){if(run.length>1)out.push(run);run=[s[i]];}
-        else run.push(s[i]);
-      }
-      if(run.length>1)out.push(run);
-    }
-    return out.filter(s=>s.length>1);};
+  const segs=a=>segsTrack(a,14);
   issTrackLayer=L.layerGroup();
   segs(past).forEach(s=>L.polyline(s,{color:"#5b6367",weight:1.5,dashArray:"4 4",interactive:false}).addTo(issTrackLayer));
   segs(fut).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:2,opacity:.85,interactive:false}).addTo(issTrackLayer));
   issTrackLayer.addTo(map);
 }
 setInterval(tickISS,2000);
-setInterval(()=>{if(issVector())drawTrack();},30000);
+setInterval(()=>{drawTrack();},30000);
+setInterval(()=>{loadTLE();},6*3600*1000);
 /* ISS polling self-schedules inside trackISS (3s burst until track draws, then 4s/6s/12s); tickISS glides the dot every 2s between fixes */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
@@ -567,8 +676,10 @@ $("aboutModal").addEventListener("click",e=>{if(e.target===$("aboutModal"))$("ab
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("aboutModal").style.display="none";});
 
 /* ---------- BOOT: ISS + map-critical feeds first, slow/heavy feeds deferred ---------- */
-initMap();restoreISS();trackISS();
-{const pi=$("pulseIss");if(pi&&!issFixes.length&&!issTrackLayer)pi.innerHTML="<b style='color:#fff'>ISS</b> acquiring signal…";}
+initMap();restoreTLE();restoreISS();
+if(issSatrec){drawTrack();tickISS();}
+trackISS();loadTLE();
+{const pi=$("pulseIss");if(pi&&!issFixes.length&&!issTrackLayer&&!issSatrec)pi.innerHTML="<b style='color:#fff'>ISS</b> acquiring signal…";}
 loadQuakes();loadAir();loadAQI();renderNews(false);loadWeather();
 setTimeout(()=>{loadMinor();loadEonet();},500); // slow 25-30s feeds: don't head-of-line-block ISS
 setTimeout(()=>{loadMarkets();loadWiki();loadPulse();loadLaunches();},1500);
