@@ -313,7 +313,16 @@ async function fetchISSPos(){
   const fetchOne=async u=>{try{
     const r=await get(u,4000);const d=await r.json();
     const la=parseFloat(d.latitude),lo=parseFloat(d.longitude);
-    if(isFinite(la)&&isFinite(lo))return{la,lo};
+    if(!isFinite(la)||!isFinite(lo)||Math.abs(la)>90||Math.abs(lo)>180)return null;
+    // Prefer satellite timestamp when present; fall back to receipt time.
+    let t=Date.now();
+    const ts=Number(d.timestamp);
+    if(isFinite(ts)&&ts>0){
+      const ms=ts<1e12?ts*1000:ts; // API returns seconds
+      // Ignore absurd clock skew (>60s future or >5min past vs receipt)
+      if(Math.abs(Date.now()-ms)<5*60*1000)t=ms;
+    }
+    return{la,lo,t};
   }catch(e){}return null;};
   // Staggered fallback: direct first, proxy only if direct is slow (>1.5s).
   // First winner resolves; the loser result is ignored (its own 4s timeout aborts it).
@@ -336,65 +345,91 @@ function placeISSMarker(la,lo,live){
   issMarker.bindTooltip("ISS · "+la.toFixed(2)+"°, "+lo.toFixed(2)+"° · "+(live?"live":"predicted"),{className:"evtip",direction:"top",offset:[0,-10],sticky:true});
   const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> "+la.toFixed(1)+"°, "+lo.toFixed(1)+"° · "+(live?"live":"predicted");
 }
+function issAcceptableFix(prev,pos){
+  if(!prev)return true;
+  const dt=(pos.t-prev.t)/1000;
+  if(!(dt>0))return false;
+  if(dt>600)return true; // long gap: accept, vector logic will re-baseline
+  // Raw apparent angular rate must be ISS-plausible; rejects teleports/bad fixes.
+  const rawOm=fCentral(prev.la,prev.lo,pos.la,pos.lo)/dt;
+  if(!isFinite(rawOm)||rawOm<0.0006||rawOm>0.0017)return false;
+  return true;
+}
 async function trackISS(){
   if(!map||typeof L==="undefined"){issTimer=setTimeout(trackISS,15000);return;}
   try{
     const pos=await fetchISSPos();
     if(pos){
-      issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});issPrune();if(issFixes.length>24)issFixes.shift();
-      issVector();
-      try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6),vec:issVecS?{om:issVecS.om,brg:issVecS.brg}:null}));}catch(e){}
-      placeISSMarker(pos.la,pos.lo,true);
-      issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
-      drawTrack();tickISS();
+      const prev=issFixes.length?issFixes[issFixes.length-1]:null;
+      if(prev&&pos.t<=prev.t)pos.t=prev.t+1000; // enforce monotonic time across direct/proxy mix
+      if(issAcceptableFix(prev,pos)){
+        issFixes.push({la:pos.la,lo:pos.lo,t:pos.t});issPrune();if(issFixes.length>24)issFixes.shift();
+        issVector();
+        try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6),vec:issVecS?{om:issVecS.om,brg:issVecS.brg}:null}));}catch(e){}
+        placeISSMarker(pos.la,pos.lo,true);
+        issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date(pos.t))+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener noreferrer'>NASA ISS →</a>");
+        drawTrack();tickISS();
+      }else{
+        // Outlier rejected: don't poison vector/track, keep polling fast to recover.
+        tickISS();
+      }
     }else{
       const pi=$("pulseIss");if(pi&&!issFixes.length)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
+      else tickISS(); // keep gliding on last good vector while feed is down
     }
   }catch(e){}
   const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
   clearTimeout(issTimer);
-  // Fast burst (~1.2s) until the first track line draws, then existing 2.5s/5s/12s backoff.
-  issTimer=setTimeout(trackISS,!issTrackLayer?1200:issFixes.length<3?2500:span<60000?5000:12000);
+  // Poll fast until a valid track exists, then back off.
+  issTimer=setTimeout(trackISS,!issTrackLayer?3000:issFixes.length<3?4000:span<90000?6000:12000);
 }
 /* Motion vector in an Earth-rotation-corrected (inertial-anchored) frame.
    Fixes are earth-fixed lat/lon, so fitting a raw great-circle to them and
    then subtracting earth rotation again drifts ~15 deg/hr of longitude.
    We anchor longitude at the newest fix: lo_inert(t) = lo_earth(t) +
    OM_EARTH*(t-T1), fit brg/om there, then convert predictions back with
-   lo_earth = lo_inert - OM_EARTH*ts. Baseline is 45-150s when available
-   (not ~10s) so fix noise doesn't amplify over the ±60min line; the vector
-   is EMA-smoothed so the track doesn't jump on every fix. */
+   lo_earth = lo_inert - OM_EARTH*ts. Minimum 8s baseline (never 2s) and a
+   tight om window so fix noise can't swing the ±60min line; a consistency
+   gate keeps one noisy pair from jerking the smoothed vector. */
 const OM_EARTH_DPS=15.0410686/3600; // sidereal deg per second
+const ISS_OM_MIN=0.00085,ISS_OM_MAX=0.00135; // tight inertial rate window (~ISS 0.0011 rad/s)
 let issVecS=null; // smoothed {F1,om,brg,at}
 function issPrune(){const n=Date.now();while(issFixes.length>2&&n-issFixes[0].t>8*60*1000)issFixes.shift();while(issFixes.length>24)issFixes.shift();}
 function issRawVector(){
   issPrune();
   if(issFixes.length<2)return null;
   const F1=issFixes[issFixes.length-1];
-  const fit=(F0,prov)=>{
+  const fit=(F0)=>{
     const dt=(F1.t-F0.t)/1000;if(!(dt>0)||!isFinite(dt))return null;
     const lo0i=F0.lo-OM_EARTH_DPS*dt; // F0 longitude in frame anchored at F1
     const om=fCentral(F0.la,lo0i,F1.la,F1.lo)/dt;
-    const bounds=prov?[0.0002,0.004]:[0.0004,0.0025];
-    if(!isFinite(om)||om<bounds[0]||om>bounds[1])return null; // ISS ~= 0.0011 rad/s
+    if(!isFinite(om)||om<ISS_OM_MIN||om>ISS_OM_MAX)return null; // ISS ~= 0.0011 rad/s
     const brg=fBearing(F0.la,lo0i,F1.la,F1.lo);
     if(!isFinite(brg))return null;
-    return{F1,om,brg,prov:!!prov};
+    return{F1,om,brg,dt};
   };
-  // 1) Accurate baseline 45-240s when available (not ~10s: fix noise amplifies over ±60min).
-  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=45&&dt<=240){const v=fit(issFixes[i],false);if(v)return v;break;}}
-  // 2) Refined baseline >=8s.
-  for(let i=0;i<issFixes.length-1;i++){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=8){const v=fit(issFixes[i],false);if(v)return v;break;}}
-  // 3) Provisional fast track from >=2s baseline so the line draws after ~2 polls
-  // instead of ~5. Replaced by (1)/(2) once a longer baseline exists.
-  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=2){const v=fit(issFixes[i],true);if(v)return v;break;}}
+  // 1) Accurate baseline 45-240s when available (fix noise amplifies over ±60min).
+  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=45&&dt<=240){const v=fit(issFixes[i]);if(v)return v;break;}}
+  // 2) Usable baseline 15-45s once a few fixes exist.
+  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=15&&dt<45){const v=fit(issFixes[i]);if(v)return v;break;}}
+  // 3) Minimum baseline >=8s. No 2s provisional: a 2s pair is pure noise
+  // and draws a wildly wrong ±60min line after just 2 polls.
+  for(let i=0;i<issFixes.length-1;i++){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=8){const v=fit(issFixes[i]);if(v)return v;break;}}
   return null;
 }
 function issVector(){
   const raw=issRawVector();if(!raw)return issVecS;
   if(!issVecS||Date.now()-issVecS.at>5*60*1000||!isFinite(issVecS.om)||!isFinite(issVecS.brg)){issVecS={F1:raw.F1,om:raw.om,brg:raw.brg,at:Date.now()};return issVecS;}
-  // Provisional fixes are noisy: blend lightly (0.2) until a refined baseline arrives.
-  const w=raw.prov?0.2:0.4;
+  // Consistency gate: don't let one noisy pair swing the ±60min line.
+  const omRatio=raw.om/issVecS.om;
+  let dBrg=(raw.brg-issVecS.brg)*Math.PI/180;
+  while(dBrg>Math.PI)dBrg-=2*Math.PI;while(dBrg<-Math.PI)dBrg+=2*Math.PI;
+  if(omRatio<0.85||omRatio>1.18||Math.abs(dBrg)>25*Math.PI/180){
+    // Keep old direction, just re-anchor to newest fix so the dot stays live.
+    issVecS={F1:raw.F1,om:issVecS.om,brg:issVecS.brg,at:issVecS.at};
+    return issVecS;
+  }
+  const w=0.35;
   const om=issVecS.om*(1-w)+raw.om*w;
   const a0=issVecS.brg*Math.PI/180,a1=raw.brg*Math.PI/180;
   let d=a1-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
@@ -414,16 +449,17 @@ function issPredicted(v,at){
 function restoreISS(){
   try{
     const c=JSON.parse(localStorage.getItem("argus-iss")||"null");
-    if(!c||!Array.isArray(c.fixes)||Date.now()-c.at>10*60*1000)return;
-    const f=c.fixes.filter(x=>x&&isFinite(x.la)&&isFinite(x.lo)&&isFinite(x.t));
-    if(!f.length)return;
+    // Only warm-start from very fresh state: ISS moves ~4°/min, so even a
+    // few minutes stale draws the ±60min line tens of degrees off-track.
+    if(!c||!Array.isArray(c.fixes)||!isFinite(c.at)||Date.now()-c.at>90*1000)return;
+    const f=c.fixes.filter(x=>x&&isFinite(x.la)&&isFinite(x.lo)&&isFinite(x.t)&&Math.abs(x.la)<=90&&Math.abs(x.lo)<=180);
+    if(f.length<2)return;
+    // Require a usable baseline already, else wait for fresh fixes.
+    if(f[f.length-1].t-f[0].t<8000)return;
     issFixes=f;issVecS=null;
-    // Warm start: restore last smoothed vector so the ±60min line draws on first
-    // paint even before fresh fixes arrive; it self-corrects on the next fix.
-    if(c.vec&&isFinite(c.vec.om)&&isFinite(c.vec.brg)&&c.vec.om>0.0002&&c.vec.om<0.004)
+    if(c.vec&&isFinite(c.vec.om)&&isFinite(c.vec.brg)&&c.vec.om>=ISS_OM_MIN&&c.vec.om<=ISS_OM_MAX)
       issVecS={F1:f[f.length-1],om:c.vec.om,brg:c.vec.brg,at:c.at};
-    if(f.length>=2)issVector();
-    else if(!issVecS)return;
+    if(!issVector()){issFixes=[];issVecS=null;return;}
     drawTrack();tickISS();
   }catch(e){}
 }
@@ -432,11 +468,9 @@ function tickISS(){
   if(!map||typeof L==="undefined")return;
   const v=issVector();if(!v||!v.F1)return;
   const now=Date.now(),age=now-v.F1.t;
-  if(age>10*60*1000){clearISSTrack();const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> stale — feed unreachable";return;}
+  if(age>3*60*1000){clearISSTrack();const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> stale — feed unreachable";return;}
   const p=issPredicted(v,now);if(!p)return;
   placeISSMarker(p.la,p.lo,age<25000);
-  // NOTE: track is redrawn only on new fixes / 30s refresh, not here,
-  // so the ±60min line stays stable instead of sliding every 2s.
 }
 const D2R=Math.PI/180,R2D=180/Math.PI;
 function fCentral(a,b,c,d){const s=Math.sin((c-a)/2*D2R)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin((d-b)/2*D2R)**2;return 2*Math.asin(Math.min(1,Math.sqrt(s)));}
@@ -445,17 +479,39 @@ function fDest(a,b,brg,dist){const la=a*D2R,lo=b*D2R,t=brg*D2R;const la2=Math.as
 function drawTrack(){
   if(!map||typeof L==="undefined")return;
   const v=issVector();if(!v||!v.F1)return;
-  if(Date.now()-v.F1.t>10*60*1000){clearISSTrack();return;}
+  if(Date.now()-v.F1.t>3*60*1000){clearISSTrack();return;}
   clearISSTrack();
   const F1=v.F1;
   const past=[],fut=[];
   for(let m=-60;m<=60;m+=2){
     const ts=m*60,p=fDest(F1.la,F1.lo,v.brg,v.om*ts);
-    if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>90)continue;
+    if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>75)continue; // ISS never exceeds ~51.6°; beyond that the vector is bad
     let ln=p[1]-OM_EARTH_DPS*ts;ln=((ln+540)%360)-180;
+    if(!isFinite(ln))continue;
     (m<=0?past:fut).push([p[0],ln]);
   }
-  const segs=a=>{const o=[[]];for(const p of a){const l=o[o.length-1];if(l.length&&Math.abs(p[1]-l[l.length-1][1])>180)o.push([p]);else l.push(p);}return o.filter(s=>s.length>1);};
+  // Split on antimeridian jumps AND on gaps left by rejected points, so a bad
+  // vector can't draw one long chord across the map.
+  const segs=a=>{const o=[[]];
+    for(const p of a){
+      const l=o[o.length-1];
+      if(l.length&&Math.abs(p[1]-l[l.length-1][1])>180)o.push([p]);
+      else l.push(p);
+    }
+    // Mark gaps: positions are dense (2min steps); a missing step means `past`/`fut`
+    // arrays built above simply lack that entry, so also break when consecutive
+    // points are implausibly far apart along-track (>~12° in 2min vs ~8° nominal).
+    const out=[];
+    for(const s of o){
+      let run=[s[0]];
+      for(let i=1;i<s.length;i++){
+        const gap=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]);
+        if(gap>14){if(run.length>1)out.push(run);run=[s[i]];}
+        else run.push(s[i]);
+      }
+      if(run.length>1)out.push(run);
+    }
+    return out.filter(s=>s.length>1);};
   issTrackLayer=L.layerGroup();
   segs(past).forEach(s=>L.polyline(s,{color:"#5b6367",weight:1.5,dashArray:"4 4",interactive:false}).addTo(issTrackLayer));
   segs(fut).forEach(s=>L.polyline(s,{color:"#e8f4ff",weight:2,opacity:.85,interactive:false}).addTo(issTrackLayer));
@@ -463,7 +519,7 @@ function drawTrack(){
 }
 setInterval(tickISS,2000);
 setInterval(()=>{if(issVector())drawTrack();},30000);
-/* ISS polling self-schedules inside trackISS (1.2s burst until track draws, then 2.5s/5s/12s); tickISS glides the dot every 2s between fixes */
+/* ISS polling self-schedules inside trackISS (3s burst until track draws, then 4s/6s/12s); tickISS glides the dot every 2s between fixes */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
 const AIRPORTS=[{icao:"KJFK",n:"New York JFK",lat:40.64,lon:-73.78},{icao:"EGLL",n:"London Heathrow",lat:51.47,lon:-0.45},{icao:"OMDB",n:"Dubai",lat:25.25,lon:55.36},{icao:"VIDP",n:"Delhi",lat:28.57,lon:77.10},{icao:"RJTT",n:"Tokyo Haneda",lat:35.55,lon:139.78},{icao:"YSSY",n:"Sydney",lat:-33.95,lon:151.18},{icao:"FACT",n:"Cape Town",lat:-33.97,lon:18.60},{icao:"SBGR",n:"São Paulo",lat:-23.44,lon:-46.47},{icao:"HECA",n:"Cairo",lat:30.12,lon:31.41},{icao:"WSSS",n:"Singapore",lat:1.36,lon:103.99}];
