@@ -35,7 +35,6 @@ opens and says so honestly.
 - **Wikipedia current-events log**, worldwide public holidays, world clocks
 - **Upcoming rocket launches** with countdowns and pad weather
 - **City weather, airport weather, FX rates, crypto + indices**
-- **Click/tap-anywhere intel**: live place name, country facts, current weather
 - UTC clock, live cursor coordinates, About guide
 - **Mobile + desktop optimized**: full-bleed map on desktop, world-hugging map
   on phones, 40px+ touch targets, horizontal legend, touch-neutral copy
@@ -56,7 +55,6 @@ opens and says so honestly.
 | Holidays | Nager.Date |
 | FX rates | Frankfurter |
 | Crypto | CoinGecko · Indices: Stooq |
-| Place names / country facts | BigDataCloud · RestCountries |
 
 ## Project structure
 

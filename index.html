@@ -67,9 +67,6 @@ main>*:nth-child(2){animation-delay:.05s}main>*:nth-child(3){animation-delay:.1s
 footer button{font-size:11px;padding:4px 10px}
 #pulseBody>span#hol{display:flex;flex-direction:column;gap:4px}
 #hol>span{margin-right:0!important;white-space:normal}
-#panelClicked #locBody{display:flex;flex-wrap:wrap;gap:4px 26px;align-items:center}
-#panelClicked .kv{justify-content:flex-start;gap:8px}
-#panelClicked h3{width:100%}
 .scroll{max-height:430px;overflow:auto}
 .newsItem{padding:12px 16px;border-bottom:1px solid var(--border-dim);cursor:pointer}
 .newsItem:hover{background:#121a14}
@@ -90,7 +87,6 @@ footer button{font-size:11px;padding:4px 10px}
 .alert{border-left:3px solid var(--faint);padding:10px 14px;margin:8px 12px;background:var(--panel2);border-radius:0 6px 6px 0;cursor:pointer}
 .alert.HIGH{border-left-color:var(--red)} .alert.MEDIUM{border-left-color:var(--amber)} .alert.WATCH{border-left-color:var(--cyan)}
 .alert small{color:var(--dim)}
-#locBody{padding:12px 14px}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;color:var(--dim)}
 .kv b{color:var(--txt);font-weight:400;text-align:right}
 footer{padding:10px 18px;color:var(--faint);font-size:10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border)}
@@ -117,7 +113,6 @@ footer{padding:10px 18px;color:var(--faint);font-size:10px;display:flex;justify-
   #map{height:auto;aspect-ratio:1/1;max-height:calc(100vh - 190px);max-height:calc(100dvh - 190px);min-height:0}
   .legend{font-size:10px;gap:10px}
   .leaflet-popup-content{font-size:12px!important}
-  #panelClicked #locBody{gap:2px 16px}
   footer{padding:8px 12px}
 }
 @media(pointer:coarse){
@@ -155,18 +150,13 @@ select:focus{border-color:var(--green)}
 <main>
   <section class="panel" id="panelMap">
     <div class="phead"><span id="mapTitle">LIVE MAP · QUAKES + MICRO-QUAKES</span>
-      <span class="tools"><span class="fresh">Tap markers · tap map for intel</span></span>
+      <span class="tools"><span class="fresh">Tap markers for detail</span></span>
     </div>
     <div id="mapWrap">
     <div id="map"></div>
     <div id="mapFallback"><div class="stateBox"><div class="big">MAP UNAVAILABLE</div>Map library or tiles could not load (offline or CDN blocked). All other panels keep working.<br><br><button onclick="location.reload()">RETRY</button></div></div>
     </div>
     <div class="phead"><span class="fresh" id="freshEv">Updated —</span><span class="fresh" id="coords" title="Cursor coordinates">—</span><span class="legend"><span><i style="background:#22c55e"></i>Q&lt;5.5</span><span><i style="background:#f59e0b"></i>Q5.5–6</span><span><i style="background:#ef4444"></i>Q6+</span><span><i style="background:transparent;border:1px solid #38bdf8"></i>M2.5–4.5</span><span><i class="sq" style="background:#38bdf8"></i>Storm</span><span><i class="sq" style="background:#ef4444"></i>Volcano</span><span><i class="sq" style="background:#60a5fa"></i>Flood</span><span><i style="background:#fff;border:1px solid #38bdf8"></i>ISS</span><span><i style="background:transparent;border:1px dashed #8b9397"></i>ISS PATH</span><span><i style="background:#0e1112;border:1px solid #38bdf8"></i>AIR</span><span><i style="background:#0e1112;border:1px solid #eab308"></i>AQI</span></span></div>
-  </section>
-
-  <section class="panel" id="panelClicked">
-    <div class="phead"><span>CLICKED LOCATION</span><span class="tools"><span class="fresh">Click any point on the map above for intel</span></span></div>
-    <div id="locBody"><span style="color:var(--dim)">Nothing selected yet — click anywhere on the map for live place name, country facts + current weather.</span></div>
   </section>
 
   <div id="bottomgrid">
@@ -211,15 +201,14 @@ select:focus{border-color:var(--green)}
     <div class="scroll" id="wikiList" style="max-height:300px"><div class="stateBox"><div class="big">LOADING...</div></div></div>
   </section>
 </main>
-<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BigDataCloud · RestCountries · BBC RSS · RocketLaunch.Live · wheretheiss.at · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
+<footer><span>ARGUS · map: Esri + OpenStreetMap · sources: USGS · EMSC · EONET · Open-Meteo · Frankfurter · Wikipedia · Nager · BBC RSS · RocketLaunch.Live · wheretheiss.at · Stooq/CoinGecko · no keys · no login</span><button id="btnAbout" title="About ARGUS">ABOUT</button><span id="footFresh">—</span></footer>
 
 <div id="aboutModal"><div id="aboutCard">
   <div style="display:flex;justify-content:space-between;align-items:center"><h2>ARG<span>US</span></h2><button id="aboutClose">CLOSE ×</button></div>
   <p style="margin-top:6px">Live data from free public sources — no accounts, no keys, no backend, nothing invented. Unreachable sources say so.</p>
   <h4>HOW TO USE</h4>
   <ul>
-    <li><b style="color:var(--txt)">Map</b> — all layers always on: quakes, micro-quakes, storms, airports, air quality, night shade, ISS + track. Fixed single-world view (no zoom/pan) — click any marker for detail. Feeds auto-refresh.</li>
-    <li><b style="color:var(--txt)">Click the map</b> — instant place name, country facts, weather in the strip below.</li>
+    <li><b style="color:var(--txt)">Map</b> — all layers always on: quakes, micro-quakes, storms, airports, air quality, night shade, ISS + track. Fixed single-world view — click any marker for detail. Feeds auto-refresh.</li>
     <li><b style="color:var(--txt)">News dropdown</b> — 9 world regions, live.</li>
     <li><b style="color:var(--txt)">Status bar</b> — live state of every source; anything unreachable says so.</li>
   </ul>
@@ -228,7 +217,7 @@ select:focus{border-color:var(--green)}
     <li>Map — <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> dark canvas + <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></li>
     <li>Quakes — <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> · Micro — <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a> · Storms, volcanoes — <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a></li>
     <li>Launches — <a href="https://rocketlaunch.live/" target="_blank" rel="noopener">RocketLaunch.Live</a> · ISS — <a href="https://wheretheiss.at/" target="_blank" rel="noopener">wheretheiss.at</a></li>
-    <li>Weather, airports + air quality — <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · Place names — BigDataCloud · Country facts — RestCountries</li>
+    <li>Weather, airports + air quality — <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></li>
     <li>Event log — <a href="https://en.wikipedia.org/wiki/Portal:Current_events" target="_blank" rel="noopener">Wikipedia Current Events</a> · News — BBC RSS · Markets — Stooq, CoinGecko, Frankfurter</li>
   </ul>
   <h4>SHORTCUTS</h4>
@@ -275,7 +264,7 @@ function initMap(){
   tileLayer=makeTiles();tileLayer.addTo(map);
   quakeLayer=L.layerGroup().addTo(map);minorLayer=L.layerGroup().addTo(map);eonetLayer=L.layerGroup().addTo(map);
   airLayer=L.layerGroup().addTo(map);aqiLayer=L.layerGroup().addTo(map);
-  map.on("click",onMapClick);drawNight();
+  drawNight();
   map.on("mousemove",e=>{const c=$("coords");if(c)c.textContent=e.latlng.lat.toFixed(2)+"°, "+e.latlng.lng.toFixed(2)+"°";});
   fitMap();
   setTimeout(fitMap,300);
@@ -442,27 +431,6 @@ async function loadWeather(){
 function bindWxRows(){$("wxList").querySelectorAll(".wxrow.clickable").forEach(el=>el.onclick=()=>{if(!map||typeof L==="undefined")return;const r=wxCache[+el.dataset.i];if(!r)return;map.panTo([r.lat,r.lon],{animate:true,duration:1});setTimeout(()=>L.popup().setLatLng([r.lat,r.lon]).setContent("<b>"+r.city+"</b><br>"+Math.round(r.t)+"°C · "+r.sub).openOn(map),1100);});}
 $("btnWxRefresh").onclick=loadWeather;
 
-/* ---------- MAP CLICK: real place + country + weather ---------- */
-let clickMarker=null;
-async function onMapClick(e){
-  try{const t=e.originalEvent&&e.originalEvent.target;if(t&&t.closest&&(t.closest(".leaflet-marker-icon")||t.closest(".leaflet-popup")))return;}catch(_){}
-  const{lat,lng}=e.latlng;const body=$("locBody");
-  body.innerHTML="<div class='stateBox'><div class='big'>LOADING...</div>Resolving location…</div>";
-  if(clickMarker&&map)map.removeLayer(clickMarker);
-  if(map)clickMarker=L.marker([lat,lng]).addTo(map);
-  let place="Lat "+lat.toFixed(2)+", Lon "+lng.toFixed(2),country=null,cc=null;
-  try{const r=await get("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude="+lat+"&longitude="+lng+"&localityLanguage=en",15000);
-    const d=await r.json();place=d.city||d.locality||d.principalSubdivision||place;country=d.countryName||null;cc=d.countryCode||null;}catch(e){}
-  let facts="";
-  if(cc){try{const r=await get("https://restcountries.com/v3.1/alpha/"+cc,15000);const d=await r.json();const c=Array.isArray(d)?d[0]:d;
-    facts="<div class='kv'><span>Capital</span><b>"+((c.capital||[])[0]||"—")+"</b></div><div class='kv'><span>Region</span><b>"+(c.region||"—")+(c.subregion?" · "+c.subregion:"")+"</b></div><div class='kv'><span>Population</span><b>"+(c.population?Number(c.population).toLocaleString():"—")+"</b></div>";}catch(e){facts="<div class='fresh'>Country facts unavailable.</div>";}}
-  let wx="<div class='fresh'>Weather unavailable.</div>";
-  try{const r=await get("https://api.open-meteo.com/v1/forecast?latitude="+lat.toFixed(3)+"&longitude="+lng.toFixed(3)+"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto",20000);
-    const d=await r.json();const c=d.current||{};
-    wx="<div class='kv'><span>Now</span><b>"+Math.round(c.temperature_2m)+"°C · "+(WMO[c.weather_code]||"—")+"</b></div><div class='kv'><span>Wind / Humidity</span><b>"+c.wind_speed_10m+" km/h · "+c.relative_humidity_2m+"%</b></div>";}catch(e){}
-  body.innerHTML="<h3 style='color:#fff;letter-spacing:1px;font-size:13px'>"+place+(country?" · "+country:"")+"</h3>"+facts+wx+"<div class='fresh' style='margin-top:6px'>Sources: BigDataCloud · RestCountries · Open-Meteo · live</div>";
-}
-
 /* ---------- MARKETS (real, honest fallback) ---------- */
 async function loadMarkets(){
   const box=$("mktBody");let rows=[],fx=[];
@@ -587,11 +555,11 @@ async function trackISS(){
   try{
     const pos=await fetchISSPos();
     if(pos){
-      issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});if(issFixes.length>24)issFixes.shift();
+      issFixes.push({la:pos.la,lo:pos.lo,t:Date.now()});issPrune();if(issFixes.length>24)issFixes.shift();
       try{localStorage.setItem("argus-iss",JSON.stringify({at:Date.now(),fixes:issFixes.slice(-6)}));}catch(e){}
       placeISSMarker(pos.la,pos.lo,true);
       issMarker.bindPopup("<b>ISS</b> · live position<br>"+pos.la.toFixed(2)+", "+pos.lo.toFixed(2)+" · updated "+utc(new Date())+" UTC<br>~28,000 km/h · ~420 km up · ±60 min predicted track<br>Source: wheretheiss.at live<br><a href='https://www.nasa.gov/international-space-station/' target='_blank' rel='noopener'>NASA ISS →</a>");
-      tickISS();
+      issVector();drawTrack();tickISS();
     }else{
       const pi=$("pulseIss");if(pi&&!issFixes.length)pi.innerHTML="<b style='color:#fff'>ISS</b> feed unreachable — retrying…";
     }
@@ -599,23 +567,50 @@ async function trackISS(){
   const span=issFixes.length>1?issFixes[issFixes.length-1].t-issFixes[0].t:0;
   clearTimeout(issTimer);issTimer=setTimeout(trackISS,issFixes.length<3?2500:span<60000?5000:12000);
 }
-/* Motion vector from live fixes; tick extrapolates it so the dot glides smoothly
-   between fixes and survives feed blips (up to 10 min) instead of freezing. */
-function issVector(){
+/* Motion vector in an Earth-rotation-corrected (inertial-anchored) frame.
+   Fixes are earth-fixed lat/lon, so fitting a raw great-circle to them and
+   then subtracting earth rotation again drifts ~15 deg/hr of longitude.
+   We anchor longitude at the newest fix: lo_inert(t) = lo_earth(t) +
+   OM_EARTH*(t-T1), fit brg/om there, then convert predictions back with
+   lo_earth = lo_inert - OM_EARTH*ts. Baseline is 45-150s when available
+   (not ~10s) so fix noise doesn't amplify over the ±60min line; the vector
+   is EMA-smoothed so the track doesn't jump on every fix. */
+const OM_EARTH_DPS=15.0410686/3600; // sidereal deg per second
+let issVecS=null; // smoothed {F1,om,brg,at}
+function issPrune(){const n=Date.now();while(issFixes.length>2&&n-issFixes[0].t>8*60*1000)issFixes.shift();while(issFixes.length>24)issFixes.shift();}
+function issRawVector(){
+  issPrune();
   if(issFixes.length<2)return null;
-  const F1=issFixes[issFixes.length-1];let F0=null;
-  for(let i=issFixes.length-2;i>=0;i--){if(F1.t-issFixes[i].t>=10000){F0=issFixes[i];break;}}
-  if(!F0)F0=issFixes[0];
-  const dt=(F1.t-F0.t)/1000;if(!F0||dt<2||!isFinite(dt))return null;
-  const om=fCentral(F0.la,F0.lo,F1.la,F1.lo)/dt;
-  if(!isFinite(om)||om<=0||om>0.01)return null;
-  return{F1,om,brg:fBearing(F0.la,F0.lo,F1.la,F1.lo)};
+  const F1=issFixes[issFixes.length-1];
+  let F0=null;
+  for(let i=issFixes.length-2;i>=0;i--){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=45&&dt<=240){F0=issFixes[i];break;}}
+  if(!F0){for(let i=0;i<issFixes.length-1;i++){const dt=(F1.t-issFixes[i].t)/1000;if(dt>=8){F0=issFixes[i];break;}}}
+  if(!F0)return null;
+  const dt=(F1.t-F0.t)/1000;if(!(dt>=8)||!isFinite(dt))return null;
+  const lo0i=F0.lo-OM_EARTH_DPS*dt; // F0 longitude in frame anchored at F1
+  const om=fCentral(F0.la,lo0i,F1.la,F1.lo)/dt;
+  if(!isFinite(om)||om<0.0004||om>0.0025)return null; // ISS ~= 0.0011 rad/s
+  const brg=fBearing(F0.la,lo0i,F1.la,F1.lo);
+  if(!isFinite(brg))return null;
+  return{F1,om,brg};
+}
+function issVector(){
+  const raw=issRawVector();if(!raw)return issVecS;
+  if(!issVecS||Date.now()-issVecS.at>5*60*1000||!isFinite(issVecS.om)||!isFinite(issVecS.brg)){issVecS={F1:raw.F1,om:raw.om,brg:raw.brg,at:Date.now()};return issVecS;}
+  const om=issVecS.om*0.6+raw.om*0.4;
+  const a0=issVecS.brg*Math.PI/180,a1=raw.brg*Math.PI/180;
+  let d=a1-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+  const ab=a0+d*0.4;
+  issVecS={F1:raw.F1,om,brg:((ab*180/Math.PI)+360)%360,at:Date.now()};
+  return issVecS;
 }
 function issPredicted(v,at){
+  if(!v||!v.F1)return null;
   const ts=(at-v.F1.t)/1000;
+  if(Math.abs(ts)>75*60)return null;
   const p=fDest(v.F1.la,v.F1.lo,v.brg,v.om*ts);
   if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>90)return null;
-  let ln=p[1]-15.0410686*ts/3600;ln=((ln+540)%360)-180;
+  let ln=p[1]-OM_EARTH_DPS*ts;ln=((ln+540)%360)-180;
   return{la:p[0],lo:ln};
 }
 function restoreISS(){
@@ -624,33 +619,36 @@ function restoreISS(){
     if(!c||!Array.isArray(c.fixes)||Date.now()-c.at>10*60*1000)return;
     const f=c.fixes.filter(x=>x&&isFinite(x.la)&&isFinite(x.lo)&&isFinite(x.t));
     if(f.length<2)return;
-    issFixes=f;
-    tickISS();
+    issFixes=f;issVecS=null;
+    issVector();drawTrack();tickISS();
   }catch(e){}
 }
+function clearISSTrack(){if(issTrackLayer&&map){try{map.removeLayer(issTrackLayer);}catch(e){}issTrackLayer=null;}}
 function tickISS(){
   if(!map||typeof L==="undefined")return;
-  const v=issVector();if(!v)return;
+  const v=issVector();if(!v||!v.F1)return;
   const now=Date.now(),age=now-v.F1.t;
-  if(age>10*60*1000)return;
+  if(age>10*60*1000){clearISSTrack();const pi=$("pulseIss");if(pi)pi.innerHTML="<b style='color:#fff'>ISS</b> stale — feed unreachable";return;}
   const p=issPredicted(v,now);if(!p)return;
   placeISSMarker(p.la,p.lo,age<25000);
-  drawTrack(p);
+  // NOTE: track is redrawn only on new fixes / 30s refresh, not here,
+  // so the ±60min line stays stable instead of sliding every 2s.
 }
 const D2R=Math.PI/180,R2D=180/Math.PI;
 function fCentral(a,b,c,d){const s=Math.sin((c-a)/2*D2R)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin((d-b)/2*D2R)**2;return 2*Math.asin(Math.min(1,Math.sqrt(s)));}
 function fBearing(a,b,c,d){const y=Math.sin((d-b)*D2R)*Math.cos(c*D2R);const x=Math.cos(a*D2R)*Math.sin(c*D2R)-Math.sin(a*D2R)*Math.cos(c*D2R)*Math.cos((d-b)*D2R);return(Math.atan2(y,x)*R2D+360)%360;}
 function fDest(a,b,brg,dist){const la=a*D2R,lo=b*D2R,t=brg*D2R;const la2=Math.asin(Math.sin(la)*Math.cos(dist)+Math.cos(la)*Math.sin(dist)*Math.cos(t));const lo2=lo+Math.atan2(Math.sin(t)*Math.sin(dist)*Math.cos(la),Math.cos(dist)-Math.sin(la)*Math.sin(la2));return[la2*R2D,((lo2*R2D+540)%360)-180];}
-function drawTrack(pt){
+function drawTrack(){
   if(!map||typeof L==="undefined")return;
-  if(issTrackLayer){map.removeLayer(issTrackLayer);issTrackLayer=null;}
-  const v=issVector();if(!v)return;
-  const F1=(pt&&isFinite(pt.la)&&isFinite(pt.lo))?{la:pt.la,lo:pt.lo}:v.F1;
+  const v=issVector();if(!v||!v.F1)return;
+  if(Date.now()-v.F1.t>10*60*1000){clearISSTrack();return;}
+  clearISSTrack();
+  const F1=v.F1;
   const past=[],fut=[];
   for(let m=-60;m<=60;m+=2){
     const ts=m*60,p=fDest(F1.la,F1.lo,v.brg,v.om*ts);
     if(!isFinite(p[0])||!isFinite(p[1])||Math.abs(p[0])>90)continue;
-    let ln=p[1]-15.0410686*ts/3600;ln=((ln+540)%360)-180;
+    let ln=p[1]-OM_EARTH_DPS*ts;ln=((ln+540)%360)-180;
     (m<=0?past:fut).push([p[0],ln]);
   }
   const segs=a=>{const o=[[]];for(const p of a){const l=o[o.length-1];if(l.length&&Math.abs(p[1]-l[l.length-1][1])>180)o.push([p]);else l.push(p);}return o.filter(s=>s.length>1);};
@@ -660,6 +658,7 @@ function drawTrack(pt){
   issTrackLayer.addTo(map);
 }
 setInterval(tickISS,2000);
+setInterval(()=>{if(issVector())drawTrack();},30000);
 /* ISS polling self-schedules inside trackISS (2.5s burst until track draws, then 5s/12s); tickISS glides the dot every 2s between fixes */
 
 /* ---------- AIRPORT WEATHER (aviationweather.gov METAR, real) ---------- */
